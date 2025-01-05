@@ -19,11 +19,10 @@ class NewsApp(ApplicationStuff):
         url = data.get("url", "")
 
         summary = f"Summarized: {input_text[:50]}..."
-        print(summary)
         self.db_manager.insert(
             self.table_name,
             {
-                "hash": self.db_manager.create_hash(text),
+                "hash": self.db_manager.compute_hash(input_text),
                 "text": input_text,
                 "url": url,
                 "timestamp": self.db_manager.utcnow(),
