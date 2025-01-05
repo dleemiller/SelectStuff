@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Send Selected Text to Endpoint",
+  "version": "1.0",
+  "permissions": ["contextMenus", "storage", "activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html"
+}
+
