@@ -13,6 +13,7 @@ from ..config import AppConfig
 
 class JSONReviewApp:
     """Main application class for the JSON Review Tool"""
+
     __version__ = "0.1"
 
     def __init__(self, config: AppConfig):
@@ -24,7 +25,13 @@ class JSONReviewApp:
         """
         self.config = config
         self.file_processor = FileProcessor(config)
-        self.data_editor = DataEditor()
+
+        # You can add custom field configurations here if needed
+        custom_configs = {
+            # Example custom config:
+            # "special_field": FieldConfig(WidgetType.TEXT_AREA, height=200)
+        }
+        self.data_editor = DataEditor(custom_configs)
         self._setup_session_state()
 
     def _setup_session_state(self):
@@ -102,25 +109,30 @@ class JSONReviewApp:
         self, data: Dict[str, Any], current_file: Path
     ) -> Dict[str, Any]:
         """Handle the editing form for the data"""
-        with st.form("edit_form"):
-            edited_data = {}
+        form_key = f"edit_form_{current_file.name}"
+        edited_data = {}
 
-            # Group fields by category if possible
+        with st.form(form_key):
             fields = self._group_fields(data)
 
             for category, category_fields in fields.items():
                 st.subheader(category)
                 for key, value in category_fields.items():
-                    config = self.data_editor.field_configs.get(key)
-                    height = config.height if config else None
-                    edited_data[key] = self.data_editor.render_field(key, value, height)
+                    # The new DataEditor.render_field only takes key and value
+                    edited_data[key] = self.data_editor.render_field(key, value)
 
-            if st.form_submit_button("Save Changes"):
-                self.file_processor.save_json(edited_data, current_file)
-                st.success("Changes saved!")
-                return edited_data
+            submitted = st.form_submit_button("Save Changes", type="primary")
 
-            return data
+            if submitted:
+                try:
+                    self.file_processor.save_json(edited_data, current_file)
+                    st.success("Changes saved successfully!")
+                    return edited_data
+                except Exception as e:
+                    st.error(f"Error saving changes: {str(e)}")
+                    return data
+
+        return data
 
     def _group_fields(self, data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """Group fields into categories for better organization"""
@@ -144,18 +156,20 @@ class JSONReviewApp:
         col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("Accept", type="primary"):
-                self.file_processor.move_file(current_file, FileAction.ACCEPT)
-                st.session_state.processed_files.add(current_file.name)
-                st.success(f"Moved {current_file.name} to accepted/")
-                self._advance_to_next()
+            with st.form(f"accept_form_{current_file.name}"):
+                if st.form_submit_button("Accept", type="primary"):
+                    self.file_processor.move_file(current_file, FileAction.ACCEPT)
+                    st.session_state.processed_files.add(current_file.name)
+                    st.success(f"Moved {current_file.name} to accepted/")
+                    self._advance_to_next()
 
         with col2:
-            if st.button("Reject", type="secondary"):
-                self.file_processor.move_file(current_file, FileAction.REJECT)
-                st.session_state.processed_files.add(current_file.name)
-                st.success(f"Moved {current_file.name} to rejected/")
-                self._advance_to_next()
+            with st.form(f"reject_form_{current_file.name}"):
+                if st.form_submit_button("Reject", type="secondary"):
+                    self.file_processor.move_file(current_file, FileAction.REJECT)
+                    st.session_state.processed_files.add(current_file.name)
+                    st.success(f"Moved {current_file.name} to rejected/")
+                    self._advance_to_next()
 
     def _advance_to_next(self):
         """Advance to the next file if available"""
