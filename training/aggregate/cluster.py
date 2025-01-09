@@ -11,7 +11,7 @@ class ClusteringConfig:
     """Configuration for clustering parameters"""
 
     jaccard_threshold: float = 0.6  # For short string exact matching
-    semantic_threshold: float = 0.7  # For semantic deduplication
+    semantic_threshold: float = 0.5  # For semantic deduplication
     min_length_for_semantic: int = 50  # Use semantic for strings longer than this
     embedding_dim: int = 256
 
@@ -55,8 +55,8 @@ class JaccardClustering(ClusteringStrategy):
 class SemanticClustering(ClusteringStrategy):
     """WordLlama-based semantic clustering using embeddings and similarity matrices"""
 
-    def __init__(self):
-        self.wl = WordLlama.load(trunc_dim=64)  # Truncate for efficiency
+    def __init__(self, dim):
+        self.wl = WordLlama.load(trunc_dim=dim) # <=256
 
     def _compute_similarity_matrix(self, embeddings: np.ndarray) -> np.ndarray:
         """Compute pairwise similarities between all embeddings"""
@@ -120,5 +120,5 @@ def get_clustering_strategy(
     if any(
         len(s.split()) > 5 or len(s) > config.min_length_for_semantic for s in strings
     ):
-        return SemanticClustering()
+        return SemanticClustering(config.embedding_dim)
     return JaccardClustering()
