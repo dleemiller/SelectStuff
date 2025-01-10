@@ -1,13 +1,13 @@
 import streamlit as st
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
+import random
 import logging
-from datetime import datetime
 import json
 
 from ..core.file_processor import FileProcessor
 from ..core.data_editor import DataEditor
-from ..core.types import FileAction, FieldConfig
+from ..core.types import FileAction
 from ..config import AppConfig
 
 
@@ -17,32 +17,12 @@ class JSONReviewApp:
     __version__ = "0.1"
 
     def __init__(self, config: AppConfig):
-        """
-        Initialize the application with configuration.
-
-        Args:
-            config: Application configuration object
-        """
         self.config = config
         self.file_processor = FileProcessor(config)
-
-        # You can add custom field configurations here if needed
-        custom_configs = {
-            # Example custom config:
-            # "special_field": FieldConfig(WidgetType.TEXT_AREA, height=200)
-        }
-        self.data_editor = DataEditor(custom_configs)
-        self._setup_session_state()
-
-    def _setup_session_state(self):
-        """Initialize Streamlit session state variables"""
-        if "processed_files" not in st.session_state:
-            st.session_state.processed_files = set()
-        if "current_index" not in st.session_state:
-            st.session_state.current_index = 0
+        self.data_editor = DataEditor()
 
     def _setup_ui(self):
-        """Configure the Streamlit UI based on settings"""
+        """Configure the Streamlit UI"""
         st.set_page_config(
             page_title=self.config.app_title,
             layout="wide" if self.config.wide_mode else "centered",
@@ -53,30 +33,28 @@ class JSONReviewApp:
             },
         )
 
-    def _render_sidebar(self, files: List[Path]):
-        """Render the sidebar with statistics and navigation"""
+    def _render_sidebar(self, input_dir: Path, accepted_dir: Path, rejected_dir: Path):
+        """Render the sidebar with statistics"""
+        accepted_files = len(list(accepted_dir.glob("*.json")))
+        rejected_files = len(list(rejected_dir.glob("*.json")))
+        remaining_files = len(list(input_dir.glob("*.json")))
+
+        # Total files is the sum of accepted, rejected, and remaining
+        total_files = accepted_files + rejected_files + remaining_files
+
         with st.sidebar:
             st.header("Statistics")
-            st.write(f"Total files: {len(files)}")
-            st.write(f"Processed: {len(st.session_state.processed_files)}")
-            st.write(f"Remaining: {len(files) - len(st.session_state.processed_files)}")
+            st.write(f"Total files: {total_files}")
+            st.write(f"Accepted: {accepted_files}")
+            st.write(f"Rejected: {rejected_files}")
+            st.write(f"Remaining: {remaining_files}")
 
-            st.header("Navigation")
-            if st.button("Previous File") and st.session_state.current_index > 0:
-                st.session_state.current_index -= 1
-                st.rerun()
-            if (
-                st.button("Next File")
-                and st.session_state.current_index < len(files) - 1
-            ):
-                st.session_state.current_index += 1
-                st.rerun()
-
-            st.header("Options")
-            if st.button("Reset Progress"):
-                st.session_state.processed_files.clear()
-                st.session_state.current_index = 0
-                st.rerun()
+    def _random_file(self, input_dir: Path) -> Path:
+        """Randomly pick a file from the input directory"""
+        files = list(input_dir.glob("*.json"))
+        if not files:
+            return None
+        return random.choice(files)
 
     def _handle_file_review(self, current_file: Path):
         """Handle the review of a single file"""
@@ -109,16 +87,14 @@ class JSONReviewApp:
         self, data: Dict[str, Any], current_file: Path
     ) -> Dict[str, Any]:
         """Handle the editing form for the data"""
-        form_key = f"edit_form_{current_file.name}"
         edited_data = {}
 
-        with st.form(form_key):
+        with st.form(f"edit_form_{current_file.name}"):
             fields = self._group_fields(data)
 
             for category, category_fields in fields.items():
                 st.subheader(category)
                 for key, value in category_fields.items():
-                    # The new DataEditor.render_field only takes key and value
                     edited_data[key] = self.data_editor.render_field(key, value)
 
             submitted = st.form_submit_button("Save Changes", type="primary")
@@ -156,43 +132,48 @@ class JSONReviewApp:
         col1, col2 = st.columns(2)
 
         with col1:
-            with st.form(f"accept_form_{current_file.name}"):
-                if st.form_submit_button("Accept", type="primary"):
+            if st.button("Accept", type="primary"):
+                try:
                     self.file_processor.move_file(current_file, FileAction.ACCEPT)
-                    st.session_state.processed_files.add(current_file.name)
                     st.success(f"Moved {current_file.name} to accepted/")
-                    self._advance_to_next()
+                    del st.session_state.current_file  # Clear the current file
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error accepting file: {str(e)}")
 
         with col2:
-            with st.form(f"reject_form_{current_file.name}"):
-                if st.form_submit_button("Reject", type="secondary"):
+            if st.button("Reject", type="secondary"):
+                try:
                     self.file_processor.move_file(current_file, FileAction.REJECT)
-                    st.session_state.processed_files.add(current_file.name)
                     st.success(f"Moved {current_file.name} to rejected/")
-                    self._advance_to_next()
-
-    def _advance_to_next(self):
-        """Advance to the next file if available"""
-        files = self.file_processor.get_files()
-        if st.session_state.current_index < len(files) - 1:
-            st.session_state.current_index += 1
-        st.rerun()
+                    del st.session_state.current_file  # Clear the current file
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error rejecting file: {str(e)}")
 
     def run(self):
         """Run the main application"""
         self._setup_ui()
 
-        files = self.file_processor.get_files()
-        if not files:
-            st.warning(
-                f"No files matching '{self.config.file_pattern}' "
-                f"found in {self.config.input_dir}"
-            )
-            return
+        input_dir = Path(self.config.input_dir)
+        accepted_dir = Path(self.config.accepted_dir)
+        rejected_dir = Path(self.config.rejected_dir)
 
-        self._render_sidebar(files)
+        # Render the sidebar
+        self._render_sidebar(input_dir, accepted_dir, rejected_dir)
 
-        # Display current file
-        if files:
-            current_file = files[st.session_state.current_index]
-            self._handle_file_review(current_file)
+        # Get a random file or use the one stored in session state
+        if (
+            "current_file" not in st.session_state
+            or not st.session_state.current_file.exists()
+        ):
+            current_file = self._random_file(input_dir)
+            if current_file:
+                st.session_state.current_file = current_file
+            else:
+                st.info("No files left to review.")
+                return
+
+        # Review the file stored in session state
+        current_file = st.session_state.current_file
+        self._handle_file_review(current_file)

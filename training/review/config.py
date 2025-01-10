@@ -33,7 +33,6 @@ class AppConfig:
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> "AppConfig":
         """Create config from parsed arguments"""
-        print(args)
         config = cls(
             input_dir=Path(args.input_dir),
             accepted_dir=Path(args.input_dir) / args.accepted_dir,

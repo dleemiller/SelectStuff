@@ -1,4 +1,5 @@
 # core/file_processor.py
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Generator
 import json
@@ -28,6 +29,11 @@ class FileChangeHandler(FileSystemEventHandler):
             self.callback(event.src_path)
 
 
+@lru_cache(maxsize=1)
+def get_observer():
+    return Observer()
+
+
 class FileProcessor:
     """
     Handles all file operations including reading, writing, moving,
@@ -45,6 +51,7 @@ class FileProcessor:
         self.file_lock = Lock()
         self._setup_directories()
         self._setup_logging()
+        self.observer = get_observer()
         self._setup_file_monitoring()
         self.backup_hashes = {}  # Track file hashes for backup
 
@@ -83,12 +90,16 @@ class FileProcessor:
 
     def _setup_file_monitoring(self) -> None:
         """Setup file system monitoring for changes"""
-        self.observer = Observer()
+        if not self.observer.is_alive():
+            self.observer.start()
+
         event_handler = FileChangeHandler(self._on_file_changed)
-        self.observer.schedule(
-            event_handler, str(self.config.input_dir), recursive=False
-        )
-        self.observer.start()
+        try:
+            self.observer.schedule(
+                event_handler, str(self.config.input_dir), recursive=False
+            )
+        except Exception as e:
+            logging.warning(f"Watch already exists for {self.config.input_dir}: {e}")
 
     def _get_backup_dir(self) -> Path:
         """Get backup directory path with timestamp-based subdirectory"""
@@ -254,6 +265,10 @@ class FileProcessor:
             logging.error(f"Error moving file {source}: {e}")
             raise
 
+        except Exception as e:
+            logging.error(f"Error moving file {source}: {e}")
+            raise
+
     def _validate_json_schema(self, data: Dict[str, Any]) -> None:
         """
         Validate JSON data against schema
@@ -315,9 +330,7 @@ class FileProcessor:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit with cleanup"""
         try:
-            self.observer.stop()
-            self.observer.join()
-            # Clean up temporary files
+            # Don't stop the observer since it's shared
             for path in self._get_temp_dir().glob("*.tmp"):
                 path.unlink()
         except Exception as e:
