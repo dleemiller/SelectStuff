@@ -26,8 +26,17 @@ class DuckDBManager:
         """Execute a schema creation statement."""
         self.connection.execute(schema)
 
-    def insert(self, table: str, data: dict):
-        """Insert a record into the specified table."""
+    def insert(self, table: str, data: dict, ignore_extra: bool = True):
+        """Insert a record into the specified table, optionally ignoring extra columns."""
+        if ignore_extra:
+            # Get the column names for the target table
+            table_columns = {
+                row[0]
+                for row in self.connection.execute(f"DESCRIBE {table}").fetchall()
+            }
+            # Filter the data to include only columns present in the table
+            data = {key: value for key, value in data.items() if key in table_columns}
+
         placeholders = ", ".join(["?" for _ in data])
         keys = ", ".join(data.keys())
         values = tuple(data.values())
