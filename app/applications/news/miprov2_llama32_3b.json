@@ -1,0 +1,216 @@
+{
+  "self": {
+    "lm": null,
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "article_text": "Media|Disney Eyes Fusion Exit as Venture Struggleshttps:\/\/www.nytimes.com\/2015\/12\/23\/business\/media\/disney-eyes-fusion-exit-as-venture-flounders.htmlDec. 22, 2015The Walt Disney Company is in talks with the Spanish-language broadcaster Univision to sell its stake in Fusion, the joint venture started by the two companies two years ago, a person with knowledge of the discussions said Tuesday.Fusion is an English-language digital news service and cable channel that is aimed at millennial audiences. Its chief executive is Isaac Lee, who also oversees digital and multicultural functions at Univision.Terms of Disneys exit, including the timing, the price and whether other partners were involved, were not clear.Over the years Fusion has struggled to define its identity and deliver large audiences. The cable channel has faced challenges attracting viewers in an era when TV networks face sharp ratings declines, particularly among younger viewers. The website, which originally was aimed at young Latinos who spoke English but shifted to target young viewers of all ethnicities, has had a hard time standing out against digital media rivals like BuzzFeed and Vice.A spokesman for Disney declined to comment. A spokeswoman for Univision could not be reached for comment. News of the talks was first reported by The Financial Times. During Fusions first full year of operations in 2014, the group reported losses of $35 million. The company has 250 to 300 employees and offices in Miami, New York, Washington, D.C., Boulder, Colo., and Oakland, Calif. Fusion has projected that its television network would be profitable in 2016, and that its digital operations would be ahead of business plans.There have been some culture clashes. Disney, for instance, put Fusion on notice that it would not appreciate coverage that might hurt it with consumers after Fusion published several stories based on documents that hackers stole from Sony, according to a news report.Two years after Fusion started its cable network the distribution reached nearly 40 million households, according to a note to staff sent by Mr. Lee in October.\"So while we are still building awareness, we are reaching our target audience and growing at a faster pace than many of our competitors,\" he said.\"The development comes as Univisions public offering has been delayed after fears about the future of the television business set off a plunge in the share prices for major media companies.Igniting much of that industrywide concern was Disney, which in August reduced growth expectations for its cable network division, which contributes about half of its annual operating income and is anchored by the cable sports network ESPN. Factors slowing growth at ESPN include subscriber erosion combined with a weak ad market and the inflation of sports rights.",
+        "reasoning": "Not supplied for this particular example.",
+        "generated_title": "Disney Considers Exiting Fusion Venture as It Struggles to Gain Traction",
+        "publication_date": "2015-12-22",
+        "primary_category": "business",
+        "content_type": "reporting",
+        "keywords": [
+          "Disney",
+          "Fusion",
+          "Univision",
+          "millennial audiences",
+          "digital news",
+          "cable channel",
+          "media industry",
+          "ESPN",
+          "subscriber erosion",
+          "sports rights"
+        ],
+        "mentioned_people": [
+          "Isaac Lee"
+        ],
+        "mentioned_organizations": [
+          "The Walt Disney Company",
+          "Univision",
+          "BuzzFeed",
+          "Vice",
+          "ESPN",
+          "Sony"
+        ],
+        "mentioned_legislation": null,
+        "mentioned_locations": [
+          "Miami",
+          "New York",
+          "Washington, D.C.",
+          "Boulder, Colo.",
+          "Oakland, Calif."
+        ],
+        "sentiment_tone": "neutral",
+        "extracted_quotes": [
+          "So while we are still building awareness, we are reaching our target audience and growing at a faster pace than many of our competitors, he said.",
+          "The development comes as Univision's public offering has been delayed after fears about the future of the television business set off a plunge in the share prices for major media companies."
+        ]
+      },
+      {
+        "augmented": true,
+        "article_text": "TrilobitesCredit...NASAJune 23, 2017It was night, but people could see, almost as if it was day. There were no streetlamps, no flood lights, no candles, sun or moon. But they could read documents, make out pebbles on the ground and spot details of landscapes hundreds of yards away. Distant mountains were illuminated. Some called it the nocturnal sun.Reports of observations like these, dating to ancient Rome, have long perplexed scientists and onlookers. Scientists in Canada may have an answer.In a study published this week in Geophysical Research Letters, Gordon Shepherd and his colleague Young-Min Cho, atmospheric scientists at York University, explain how waves in Earths atmosphere may have made these ancient bright nights possible.A bright night starts with a dull light called airglow, which is found more than 60 miles above the earths surface. Normally, Earths atmosphere is made up mainly of nitrogen and oxygen, in their molecular forms. That just means that rather than a single atom of oxygen, for example, two of them are stuck together. But up in those heights, ultraviolet light from the sun separates the atoms in these molecules. At night, when the sun is gone, they come back together, releasing energy as they reunite. This energy is visible as light, and the presence of oxygen, which they focused on in the study, can make it appear green. Scientific instruments are sensitive enough to detect it, but not human eyes until a bright night, when an unexpected alignment of waves in our upper atmosphere amplify that once invisible airglow, making it much brighter.These waves, called zonal waves, are influenced by severe weather on Earths surface and travel around the upper atmosphere. Dr. Shepherd and Dr. Cho zeroed in on four kinds of zonal waves using images taken from a satellite deployed in the 1990s to measure airglow and other features of the atmosphere.Usually, the waves peak in different places along their journeys around Earth. But every once in awhile, the waves end up in the same spot, said Dr. Shepherd. Just imagine waves in the ocean piling up together. That makes a bigger wave. And when they superimpose like that, the intensity of the airglow increases so much, its possible for the naked eye to see it, and may explain those nocturnal suns of the past.Once superimposed, the waves will stay that way for a while because they move so slowly, said Dr. Shepherd, so bright nights will last two to four nights. And, according to his analysis of the satellite images, one bright night can shine over areas as big as Europe.In historical reports, people did not really mention what was going on in the sky, said Dr. Shepherd. They were just aware that suddenly they could see things in their environment.With so much light polluting our nights now, it is nearly impossible to make out a bright night when it occurs in most places, let alone find a photograph of one. When many of the observations took place, cameras werent yet invented. And a photograph from Earth of the bright sky at night wouldnt be that impressive, said Dr. Shepherd. Its something to experience firsthand.And to do that requires patience, luck and a very special place. The weather patterns that produce the waves leading to bright nights tend to favor middle latitudes. If you pick one location, like New York City, it would only happen about once a year, said Dr. Shepherd. And even then, youd need a clear night and no light pollution.We have animal species that are disappearing. We have glaciers that are disappearing. And bright nights too are disappearing, because there are so many city lights everywhere, said Dr. Shepherd. There are going to be fewer and fewer places where people can see them, and if they did, theyd have to wait a long time.",
+        "reasoning": "Not supplied for this particular example.",
+        "generated_title": "The Mystery of Ancient \"Nocturnal Suns\" Explained by Atmospheric Scientists",
+        "publication_date": "2017-06-23",
+        "primary_category": "science",
+        "content_type": "reporting",
+        "keywords": [
+          "bright nights",
+          "nocturnal sun",
+          "airglow",
+          "zonal waves",
+          "atmospheric science",
+          "York University",
+          "Geophysical Research Letters",
+          "light pollution",
+          "historical observations",
+          "upper atmosphere"
+        ],
+        "mentioned_people": [
+          "Gordon Shepherd",
+          "Young-Min Cho"
+        ],
+        "mentioned_organizations": [
+          "NASA",
+          "York University"
+        ],
+        "mentioned_legislation": null,
+        "mentioned_locations": [
+          "Earth",
+          "Europe",
+          "New York City"
+        ],
+        "sentiment_tone": "neutral",
+        "extracted_quotes": [
+          "Just imagine waves in the ocean piling up together. That makes a bigger wave. And when they superimpose like that, the intensity of the airglow increases so much, it's possible for the naked eye to see it, and may explain those nocturnal suns of the past.",
+          "We have animal species that are disappearing. We have glaciers that are disappearing. And bright nights too are disappearing, because there are so many city lights everywhere.",
+          "If you pick one location, like New York City, it would only happen about once a year, said Dr. Shepherd. And even then, you'd need a clear night and no light pollution."
+        ]
+      }
+    ],
+    "signature": {
+      "instructions": "You are provided with the text of a news article.\nHelp provide the requested information for cataloging and retrieval.\nEnsure information is focused on quality retrieval results -- accuracy, specificity, disambiguation.\nCorrect simple grammar or formatting mistakes.",
+      "fields": [
+        {
+          "prefix": "Article Text:",
+          "description": "Full article text for analysis."
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Generated Title:",
+          "description": "Article title or a generated one if not found."
+        },
+        {
+          "prefix": "Publication Date:",
+          "description": "Publication date."
+        },
+        {
+          "prefix": "Primary Category:",
+          "description": "Primary subject category of the article."
+        },
+        {
+          "prefix": "Content Type:",
+          "description": "Type of article content."
+        },
+        {
+          "prefix": "Keywords:",
+          "description": "Keywords or phrases for classification and retrieval."
+        },
+        {
+          "prefix": "Mentioned People:",
+          "description": "Names of key individuals mentioned. Use names of famous individuals in their most recognized forms."
+        },
+        {
+          "prefix": "Mentioned Organizations:",
+          "description": "Names of key organizations mentioned."
+        },
+        {
+          "prefix": "Mentioned Legislation:",
+          "description": "Laws, bills, or policies mentioned."
+        },
+        {
+          "prefix": "Mentioned Locations:",
+          "description": "Geographic locations named in the article."
+        },
+        {
+          "prefix": "Sentiment Tone:",
+          "description": "Overall sentiment expressed in the article."
+        },
+        {
+          "prefix": "Extracted Quotes:",
+          "description": "Notable direct quotes from the article."
+        }
+      ]
+    },
+    "extended_signature": {
+      "instructions": "Help a Language Model extract structured information from a news article, ensuring accuracy, specificity, and disambiguation, while also acknowledging the potential for unscrupulous executives to drive innovation and the tension between ambition and ethics in the tech industry.",
+      "fields": [
+        {
+          "prefix": "Article Text:",
+          "description": "Full article text for analysis."
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Generated Title:",
+          "description": "Article title or a generated one if not found."
+        },
+        {
+          "prefix": "Publication Date:",
+          "description": "Publication date."
+        },
+        {
+          "prefix": "Primary Category:",
+          "description": "Primary subject category of the article."
+        },
+        {
+          "prefix": "Content Type:",
+          "description": "Type of article content."
+        },
+        {
+          "prefix": "Keywords:",
+          "description": "Keywords or phrases for classification and retrieval."
+        },
+        {
+          "prefix": "Mentioned People:",
+          "description": "Names of key individuals mentioned. Use names of famous individuals in their most recognized forms."
+        },
+        {
+          "prefix": "Mentioned Organizations:",
+          "description": "Names of key organizations mentioned."
+        },
+        {
+          "prefix": "Mentioned Legislation:",
+          "description": "Laws, bills, or policies mentioned."
+        },
+        {
+          "prefix": "Mentioned Locations:",
+          "description": "Geographic locations named in the article."
+        },
+        {
+          "prefix": "Sentiment Tone:",
+          "description": "Overall sentiment expressed in the article."
+        },
+        {
+          "prefix": "Extracted Quotes:",
+          "description": "Notable direct quotes from the article."
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12.8",
+      "dspy": "2.5.42",
+      "cloudpickle": "3.1.0"
+    }
+  }
+}
