@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from typing import Any, get_args, get_origin, Union
 from datetime import date
@@ -5,6 +6,8 @@ from datetime import date
 import dspy
 from wordllama import WordLlama
 from core.dispatcher import compare_value
+
+logger = logging.getLogger(__name__)
 
 
 def strip_optional(hint: Any) -> Any:
@@ -105,8 +108,16 @@ class WordLlamaScorer:
         for field_name, field_type in self.fields.items():
             ref_val = reference_dict.get(field_name)
             pred_val = prediction_dict.get(field_name)
-            # Use WordLlama instance with singledispatch for field comparison
-            field_score = compare_value(self.wl, ref_val, pred_val)
+
+            if ref_val == pred_val:  # exact match (including None)
+                field_score = 1.0
+            elif ref_val is None or pred_val is None:
+                field_score = 0.0
+            else:
+                # Use WordLlama instance with singledispatch for field comparison
+                field_score = compare_value(ref_val, pred_val, self.wl)
+
+            # logger.info(f"{ref_val}, {pred_val}, {field_score}")
             scores.append(field_score)
 
         # Return the average score across all fields
