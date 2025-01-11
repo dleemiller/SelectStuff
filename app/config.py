@@ -1,4 +1,4 @@
-from typing import Callable, Type
+from typing import Callable, Optional, Type
 
 import yaml
 from pydantic import BaseModel, field_validator
@@ -44,9 +44,16 @@ class RouteConfig(BaseModel):
         return self.path, route_handler
 
 
+class ModelConfig(BaseModel):
+    name: str
+    ipaddr: Optional[str] = None
+    apikey: Optional[str] = None
+
+
 class AppConfig(BaseModel):
     routes: list[RouteConfig]
     database: str
+    model: ModelConfig
 
     def register_routes(self, router: APIRouter):
         """Register all routes to the provided router."""
