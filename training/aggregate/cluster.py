@@ -55,7 +55,7 @@ class JaccardClustering(ClusteringStrategy):
 class SemanticClustering(ClusteringStrategy):
     """WordLlama-based semantic clustering using embeddings and similarity matrices"""
 
-    def __init__(self, dim):
+    def __init__(self, dim=256):
         self.wl = WordLlama.load(trunc_dim=dim) # <=256
 
     def _compute_similarity_matrix(self, embeddings: np.ndarray) -> np.ndarray:
