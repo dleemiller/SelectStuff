@@ -1,52 +1,106 @@
+# app/main.py
+
+import logging
 import os
 
-import dspy
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from .config import AppConfig, load_config
+import dspy
+
+from .config import load_config, AppConfig
 from .database import DuckDBManager
-
-import logging
-
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-
-
-# set your api key (if needed)
-load_dotenv()
-APIKEY = os.getenv("APIKEY")
 
 # Import applications to ensure they are registered
 import app.applications.news
 from app.models.inputs import TextInputRequest
+from .routes.db_routes import router as db_router
 
-# Load configuration
-app_config = load_config("config.yml")
+# ------------------------------
+# Configure Logging
+# ------------------------------
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
 
-# set your model (litellm model strings)
-lm = dspy.LM(app_config.model.name, api_key=APIKEY, cache=True)
-dspy.configure(lm=lm)
+# ------------------------------
+# Load Environment Variables
+# ------------------------------
+load_dotenv()
+APIKEY = os.getenv("APIKEY")
 
-# Create FastAPI instance and router
-app = FastAPI()
-router = APIRouter()
-db_manager = DuckDBManager(app_config.database)
 
-# Register routes dynamically
-for route in app_config.routes:
-    path, handler = route.create_route(db_manager)
-    router.post(path)(handler)
+# ------------------------------
+# Application Setup
+# ------------------------------
+def create_app() -> FastAPI:
+    """
+    Create and configure the FastAPI application.
+    """
+    # Initialize FastAPI instance
+    app = FastAPI(
+        title="Database Interaction API",
+        description="An API for interacting with DuckDB and running SQL queries.",
+        version="1.0.0",
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # You can restrict this to specific origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
-)
+    # Middleware for CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Restrict in production
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-# Include the router in the FastAPI app
-app.include_router(router)
+    # Load application configuration
+    app_config = load_config("config.yml")
+
+    # Configure LLM
+    configure_llm(app_config, APIKEY)
+
+    # Store global objects in application state
+    app.state.db_manager = initialize_database(app_config)
+
+    # Register routes
+    register_routes(app, app_config)
+
+    return app
+
+
+# ------------------------------
+# Helper Functions
+# ------------------------------
+def configure_llm(config: AppConfig, api_key: str):
+    """
+    Configure the LLM for use across the application.
+    """
+    lm = dspy.LM(config.model.name, api_key=api_key, cache=True)
+    dspy.configure(lm=lm)
+
+
+def initialize_database(config) -> DuckDBManager:
+    """
+    Initialize and return the DuckDBManager instance.
+    """
+    return DuckDBManager(db_path=config.database)
+
+
+def register_routes(app: FastAPI, config: AppConfig):
+    """
+    Register all application routes.
+    """
+    # Include the database-related routes
+    app.include_router(db_router)
+
+    # Dynamically register additional routes defined in config
+    for route in config.routes:
+        path, handler = route.create_route(app.state.db_manager)
+        app.post(path)(handler)
+
+
+# ------------------------------
+# Entry Point
+# ------------------------------
+app = create_app()
