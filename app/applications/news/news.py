@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import dspy
 
@@ -18,6 +19,10 @@ class NewsApp(ApplicationStuff):
 
     @property
     def schema(self) -> str:
+        """
+        Schema definition for the news table.
+        JSON is used instead of TEXT[] for array-like fields.
+        """
         return f"""
         CREATE TABLE IF NOT EXISTS {self.table_name} (
             hash TEXT PRIMARY KEY,
@@ -28,28 +33,59 @@ class NewsApp(ApplicationStuff):
             publication_date DATE,
             primary_category TEXT NOT NULL,
             content_type TEXT NOT NULL,
-            keywords TEXT[],
-            mentioned_people TEXT[],
-            mentioned_organizations TEXT[],
-            mentioned_legislation TEXT[],
-            mentioned_locations TEXT[],
+            keywords JSON,
+            mentioned_people JSON,
+            mentioned_organizations JSON,
+            mentioned_legislation JSON,
+            mentioned_locations JSON,
             sentiment_tone TEXT,
-            extracted_quotes TEXT[]
+            extracted_quotes JSON
         )
         """
 
     def process(self, data: dict):
+        """
+        Process the input data, parse metadata, and insert into the database.
+
+        Args:
+            data (dict): Input data containing text and optional URL.
+
+        Returns:
+            dict: A summary of the processing results.
+        """
         input_text = data.get("text", "")
         url = data.get("url", "")
-        metadata = self.parser(article_text=input_text)
+
+        # Parse metadata and convert to dictionary
+        metadata = self.parser(article_text=input_text).toDict()
+
+        # Add basic fields to the row
         row = {
             "hash": self.db_manager.compute_hash(input_text),
             "text": input_text,
             "url": url,
             "timestamp": self.db_manager.utcnow(),
         }
-        row.update(metadata.toDict())
+        row.update(metadata)
 
-        summary = f"Summarized: {input_text[:50]}..."
+        # Fields to store as JSON
+        json_fields = [
+            "keywords",
+            "mentioned_people",
+            "mentioned_organizations",
+            "mentioned_legislation",
+            "mentioned_locations",
+            "extracted_quotes",
+        ]
+
+        # Convert JSON fields to JSON strings
+        for field in json_fields:
+            if field in row:
+                row[field] = json.dumps(row[field])
+
+        # Insert into the database
         self.db_manager.insert(self.table_name, row)
+
+        # Return a summary
+        summary = f"Summarized: {input_text[:50]}..."
         return {"summary": summary}

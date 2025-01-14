@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from .applications import get_stuff
 from .models import get_request_model
-from .database import DuckDBManager
+from .database import SQLiteManager
 
 
 class RouteConfig(BaseModel):
@@ -31,7 +31,7 @@ class RouteConfig(BaseModel):
         """Resolve the request model name into a registered model."""
         return get_request_model(request_model)
 
-    def create_route(self, db_manager: DuckDBManager) -> Callable:
+    def create_route(self, db_manager: SQLiteManager) -> Callable:
         registered_apps = get_stuff()
         app_class = registered_apps[self.application]
 

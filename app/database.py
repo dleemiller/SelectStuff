@@ -1,48 +1,25 @@
-import hashlib
 import os
+import sqlite3
+import hashlib
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-import duckdb
 
-
-class DuckDBManager:
+class SQLiteManager:
     def __init__(self, db_path: str):
         """
-        Initialize the DuckDBManager.
+        Initialize the SQLiteManager.
 
         Args:
-            db_path (str): Path to the DuckDB database file.
+            db_path (str): Path to the SQLite database file.
         """
         db_dir = os.path.dirname(db_path)
-        if not os.path.exists(db_dir):
+        if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir)
 
-        self.connection = duckdb.connect(db_path)
-        self._ensure_fts_extension()
-
-    def _ensure_fts_extension(self):
-        """
-        Ensure the Full-Text Search (FTS) extension is installed and loaded.
-
-        Raises:
-            RuntimeError: If the extension cannot be loaded or installed.
-        """
-        try:
-            # Attempt to load the FTS extension
-            self.connection.load_extension("fts")
-        except duckdb.IOException as load_error:
-            if "not found" in str(load_error).lower():
-                try:
-                    # If not found, install the extension and retry loading
-                    self.connection.install_extension("fts")
-                    self.connection.load_extension("fts")
-                except Exception as install_error:
-                    raise RuntimeError(
-                        f"Failed to install or load FTS extension: {install_error}"
-                    )
-            else:
-                raise RuntimeError(f"Failed to load FTS extension: {load_error}")
+        # Establish a connection to the SQLite database
+        self.connection = sqlite3.connect(db_path, check_same_thread=False)
+        self.connection.execute("PRAGMA foreign_keys = ON;")
 
     @staticmethod
     def utcnow() -> datetime:
@@ -78,7 +55,8 @@ class DuckDBManager:
             RuntimeError: If the table creation fails.
         """
         try:
-            self.connection.execute(schema)
+            with self.connection:
+                self.connection.execute(schema)
         except Exception as e:
             raise RuntimeError(f"Failed to create table: {e}")
 
@@ -95,13 +73,10 @@ class DuckDBManager:
             RuntimeError: If the insertion fails.
         """
         try:
+            # If ignoring extra columns, fetch table info and filter the data
             if ignore_extra:
-                # Get the column names for the target table
-                table_columns = {
-                    row[0]
-                    for row in self.connection.execute(f"DESCRIBE {table}").fetchall()
-                }
-                # Filter the data to include only columns present in the table
+                cursor = self.connection.execute(f"PRAGMA table_info({table});")
+                table_columns = {row[1] for row in cursor.fetchall()}
                 data = {
                     key: value for key, value in data.items() if key in table_columns
                 }
@@ -111,129 +86,140 @@ class DuckDBManager:
             values = tuple(data.values())
 
             query = f"INSERT INTO {table} ({keys}) VALUES ({placeholders})"
-            self.connection.execute(query, values)
+            with self.connection:
+                self.connection.execute(query, values)
         except Exception as e:
             raise RuntimeError(f"Failed to insert data into table '{table}': {e}")
 
     def create_fts_index(
         self,
-        input_table: str,
-        input_id: str,
-        input_values: List[str],
-        stemmer: str = "porter",
-        stopwords: str = "english",
-        ignore: str = r"(\.|[^a-z])+",
-        strip_accents: bool = True,
-        lower: bool = True,
+        fts_table: str,
+        columns: List[str],
+        content_table: Optional[str] = None,
         overwrite: bool = False,
+        tokenize: str = "unicode61",  # e.g., 'unicode61', 'porter', etc. if compiled in
+        remove_accents: bool = True,
     ):
         """
-        Create a full-text search (FTS) index on the specified table and columns.
+        Create a full-text search (FTS5) virtual table.
 
         Args:
-            input_table (str): Name of the table to index.
-            input_id (str): Column name of the document identifier.
-            input_values (List[str]): List of column names to be indexed.
-            stemmer (str): Type of stemmer to use. Defaults to 'porter'.
-            stopwords (str): Stopwords list. Defaults to 'english'.
-            ignore (str): Regular expression of patterns to ignore. Defaults to r"(\\.|[^a-z])+"
-            strip_accents (bool): Whether to remove accents. Defaults to True.
-            lower (bool): Whether to lowercase text. Defaults to True.
-            overwrite (bool): Whether to overwrite an existing index. Defaults to False.
+            fts_table (str): Name of the virtual table to create for FTS.
+            columns (List[str]): List of columns to be indexed.
+            content_table (Optional[str]): Name of the "content" table if using external content. Defaults to None.
+            overwrite (bool): Whether to overwrite an existing FTS table. Defaults to False.
+            tokenize (str): Tokenizer to use ('unicode61', 'porter', etc.). Defaults to 'unicode61'.
+            remove_accents (bool): Whether to remove accents. Defaults to True.
 
         Raises:
             RuntimeError: If the index creation fails.
         """
-        input_values_str = ", ".join(input_values)
-        try:
-            self.connection.execute(
-                f"""
-                PRAGMA create_fts_index(
-                    '{input_table}',
-                    '{input_id}',
-                    {input_values_str},
-                    stemmer = '{stemmer}',
-                    stopwords = '{stopwords}',
-                    ignore = '{ignore}',
-                    strip_accents = {1 if strip_accents else 0},
-                    lower = {1 if lower else 0},
-                    overwrite = {1 if overwrite else 0}
-                );
-                """
-            )
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to create FTS index on table '{input_table}': {e}"
-            )
+        # If overwrite=True, drop any existing FTS table
+        if overwrite:
+            drop_query = f"DROP TABLE IF EXISTS {fts_table};"
+            try:
+                with self.connection:
+                    self.connection.execute(drop_query)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to drop existing FTS table '{fts_table}': {e}"
+                )
 
-    def drop_fts_index(self, input_table: str):
+        # Build column definitions for FTS
+        # Example: "col1, col2, col3"
+        columns_def = ", ".join(columns)
+
+        # If using "external content" mode:
+        #   CREATE VIRTUAL TABLE fts_table USING fts5(
+        #       col1, col2, ...
+        #       content='original_table',
+        #       content_rowid='id',
+        #       tokenize='unicode61 remove_diacritics 1'
+        #   );
+        #
+        # Otherwise, just store text data inside the FTS table itself
+        content_clause = ""
+        if content_table:
+            content_clause = f", content='{content_table}'"
+
+        # If remove_accents:
+        diacritic_clause = " remove_diacritics 1" if remove_accents else ""
+
+        create_query = f"""
+        CREATE VIRTUAL TABLE {fts_table}
+        USING fts5 (
+            {columns_def}
+            {content_clause},
+            tokenize='{tokenize}{diacritic_clause}'
+        );
         """
-        Drop an FTS index for the specified table.
+        try:
+            with self.connection:
+                self.connection.execute(create_query)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create FTS table '{fts_table}': {e}")
+
+    def drop_fts_index(self, fts_table: str):
+        """
+        Drop an FTS virtual table.
 
         Args:
-            input_table (str): Name of the table whose index should be dropped.
+            fts_table (str): Name of the FTS table to drop.
 
         Raises:
-            RuntimeError: If the index drop operation fails.
+            RuntimeError: If the drop operation fails.
         """
+        query = f"DROP TABLE IF EXISTS {fts_table};"
         try:
-            self.connection.execute(f"PRAGMA drop_fts_index('{input_table}');")
+            with self.connection:
+                self.connection.execute(query)
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to drop FTS index for table '{input_table}': {e}"
-            )
+            raise RuntimeError(f"Failed to drop FTS table '{fts_table}': {e}")
 
     def search_fts(
         self,
-        input_table: str,
-        input_id: str,
+        fts_table: str,
         query_string: str,
-        fields: Optional[List[str]] = None,
-        k: float = 1.2,
-        b: float = 0.75,
-        conjunctive: bool = False,
+        columns: Optional[List[str]] = None,
+        limit: Optional[int] = None,
     ) -> List[tuple]:
         """
-        Perform a full-text search using the BM25 ranking model.
+        Perform a full-text search using the built-in FTS5 engine.
 
         Args:
-            input_table (str): Name of the table to search.
-            input_id (str): Identifier column in the table.
-            query_string (str): Query string to search for.
-            fields (Optional[List[str]]): List of fields to search in. Defaults to None (all indexed fields).
-            k (float): BM25 parameter k1. Defaults to 1.2.
-            b (float): BM25 parameter b. Defaults to 0.75.
-            conjunctive (bool): Whether to require all query terms to be present. Defaults to False.
+            fts_table (str): Name of the FTS table to search.
+            query_string (str): The query string to search for (FTS syntax).
+            columns (Optional[List[str]]): List of columns to return. If None, returns all.
+            limit (Optional[int]): Optional limit on the number of rows returned.
 
         Returns:
-            List[tuple]: List of search results, including document identifiers and scores.
+            List[tuple]: Search results as a list of tuples.
 
         Raises:
             RuntimeError: If the search fails.
         """
-        fields_str = f"'{', '.join(fields)}'" if fields else "NULL"
-        schema_name = f"fts_main_{input_table.replace('.', '_')}"  # Correct schema name
+        # If columns is None, we select all columns: "SELECT *"
+        # Otherwise, select the given columns plus a BM25 rank column for sorting
+        select_cols = "*"
+        if columns:
+            # We can also add a rank column if we want: "bm25(fts_table) AS rank"
+            select_cols = ", ".join(columns) + ", bm25({}) AS rank".format(fts_table)
+        else:
+            # By default, fetch all columns plus rank
+            select_cols = "*, bm25({}) AS rank".format(fts_table)
+
+        # Construct basic SELECT query
+        query = f"""
+            SELECT {select_cols}
+            FROM {fts_table}
+            WHERE {fts_table} MATCH ?
+            ORDER BY bm25({fts_table}) ASC
+        """
+        if limit:
+            query += f" LIMIT {limit}"
 
         try:
-            query = f"""
-            SELECT *
-            FROM (
-                SELECT *,
-                       {schema_name}.match_bm25(
-                           {input_id},
-                           '{query_string}',
-                           fields := {fields_str},
-                           k := {k},
-                           b := {b},
-                           conjunctive := {1 if conjunctive else 0}
-                       ) AS score
-                FROM {input_table}
-            ) sq
-            WHERE score IS NOT NULL
-            ORDER BY score DESC;
-            """
-            return self.connection.execute(query).fetchall()
+            cursor = self.connection.execute(query, (query_string,))
+            return cursor.fetchall()
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to perform full-text search on table '{input_table}': {e}"
-            )
+            raise RuntimeError(f"Failed to perform FTS search on '{fts_table}': {e}")
