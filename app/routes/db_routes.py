@@ -137,12 +137,12 @@ def create_fts_index(
     """
     try:
         db_manager.create_fts_index(
-            fts_table=request.input_table + "_fts",
+            fts_table=request.fts_table + "_fts",
             columns=request.input_values,
-            content_table=request.input_table,
+            content_table=request.fts_table,
             overwrite=request.overwrite,
         )
-        return {"message": f"FTS index created for table '{request.input_table}'."}
+        return {"message": f"FTS index created for table '{request.fts_table}'."}
     except Exception as e:
         logging.error(f"Error creating FTS index: {e}")
         raise HTTPException(status_code=500, detail="Failed to create FTS index.")
@@ -166,7 +166,7 @@ def query_fts_index(
     """
     try:
         results = db_manager.search_fts(
-            fts_table=request.input_table + "_fts",
+            fts_table=request.fts_table + "_fts",
             query_string=request.query_string,
             columns=request.fields,
             limit=request.limit,
@@ -219,3 +219,45 @@ def update_fts_index(
     except Exception as e:
         logging.error(f"Error updating FTS index for table '{table_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update FTS index: {e}")
+
+
+@router.post("/fts/drop")
+def drop_fts_index(
+    fts_table: str, db_manager: SQLiteManager = Depends(get_db_manager)
+) -> dict:
+    """Drop an existing full-text search index.
+    Args:
+        fts_table: Name of the table whose index should be dropped.
+        db_manager: Database manager instance (injected dependency).
+    Returns:
+        dict: Success message.
+    Raises:
+        HTTPException: If index deletion fails.
+    """
+    try:
+        db_manager.drop_fts_index(fts_table=fts_table)
+        return {"message": f"FTS index dropped for table '{fts_table}'."}
+    except Exception as e:
+        logging.error(f"Error dropping FTS index: {e}")
+        raise HTTPException(status_code=500, detail="Failed to drop FTS index.")
+
+
+@router.get(
+    "/fts/list",
+    summary="List FTS Indexes",
+    description="List all available FTS indexes with their indexed fields.",
+)
+def list_fts_indexes(db: SQLiteManager = Depends(get_db_manager)):
+    """
+    List all available FTS indexes and their indexed fields.
+
+    Args:
+        db (DatabaseConfig): Injected database configuration instance.
+
+    Returns:
+        dict: Dictionary containing index details.
+    """
+    try:
+        return db.list_fts_indexes()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

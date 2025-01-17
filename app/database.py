@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List, Optional, Any
 import sqlite3
 from sqlmodel import SQLModel, create_engine
@@ -72,6 +73,48 @@ class SQLiteManager:
                 self.connection.execute(create_query)
         except Exception as e:
             raise RuntimeError(f"Failed to create FTS table '{fts_table}': {e}")
+
+    def list_fts_indexes(self) -> dict:
+        """
+        List all available FTS indexes and their indexed fields.
+
+        Returns:
+            dict: Dictionary with table names as keys and lists of indexed fields as values
+        """
+        try:
+            # Query SQLite's master table for FTS5 virtual tables
+            query = """
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND sql LIKE '%USING fts5%'
+            """
+            fts_tables = self.connection.execute(query).fetchall()
+
+            indexes = {}
+            for (table_name,) in fts_tables:
+                # For each FTS table, get its column info from SQLite
+                fields_query = f"SELECT name FROM pragma_table_info('{table_name}')"
+                fields = [
+                    row[0]
+                    for row in self.connection.execute(fields_query).fetchall()
+                    if not row[0].startswith("__")  # Skip internal FTS columns
+                ]
+
+                # If this is an external content FTS table, get the content table
+                config_query = f"SELECT * FROM {table_name}('columnlist')"
+                config = self.connection.execute(config_query).fetchone()
+                if config:
+                    config_str = config[0]
+                    content_match = re.search(r"content='([^']*)'", config_str)
+                    if content_match:
+                        content_table = content_match.group(1)
+                        table_name = f"{content_table} (FTS: {table_name})"
+
+                indexes[table_name] = fields
+
+            return {"indexes": indexes}
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to list FTS indexes: {e}")
 
     def drop_fts_index(self, fts_table: str):
         """Drop an FTS virtual table."""
