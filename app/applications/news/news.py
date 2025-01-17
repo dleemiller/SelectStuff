@@ -22,8 +22,8 @@ def load_program():
 class NewsApp(ApplicationStuff):
     parser = load_program()
     base_fields = {
-        "id": (int, Field(primary_key=True)),
-        "text": (str, Field()),
+        "id": (Optional[int], Field(default=None, primary_key=True)),
+        # "text": (str, Field()),
         "url": (Optional[str], Field(default=None)),
         "timestamp": (datetime, Field()),
     }
@@ -31,11 +31,11 @@ class NewsApp(ApplicationStuff):
     def __init__(self, db_manager: "SQLiteManager", table_name: str):
         self.db = db_manager
 
-        NewsModel = SignatureToSQLModel.to_sqlmodel(
+        self._NewsModel = SignatureToSQLModel.to_sqlmodel(
             NewsAppSignature, table_name=table_name, base_fields=self.base_fields
         )
 
-        self.db.create_all(NewsModel)
+        self.db.create_all(self._NewsModel)
 
         ## Create FTS index for text search
         # self.db.create_fts_index(
@@ -54,9 +54,10 @@ class NewsApp(ApplicationStuff):
 
         # Parse metadata and convert to dictionary
         metadata = self.parser(article_text=input_text).toDict()
+        metadata["article_text"] = input_text
 
         # Create the News object
-        news_entry = NewsModel(
+        news_entry = self._NewsModel(
             text=input_text, url=url, timestamp=datetime.utcnow(), **metadata
         )
 

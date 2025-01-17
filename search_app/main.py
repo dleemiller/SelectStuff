@@ -224,7 +224,7 @@ def main():
                 overwrite = st.checkbox("Overwrite Existing Index", False)
                 if st.button("Create Index"):
                     resp = create_index(
-                        input_table=create_table_sel,
+                        fts_table=create_table_sel,
                         input_id=input_id_create,
                         input_values=input_values_create,
                         stemmer=stemmer,
@@ -284,7 +284,7 @@ def main():
         # 2) Perform the search
         # Build query params
         query_params = {
-            "input_table": selected_table,
+            "fts_table": selected_table,
             "input_id": input_id,
             "query_string": user_query,
             "fields": fields if fields else None,

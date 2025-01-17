@@ -31,11 +31,11 @@ def get_table_schema(table_name: str) -> list:
 
 
 def create_index(
-    input_table: str, input_id: str, input_values: list, **kwargs
+    fts_table: str, input_id: str, input_values: list, **kwargs
 ) -> requests.Response:
     """Create a fulltext search index for a given table."""
     payload = {
-        "input_table": input_table,
+        "fts_table": fts_table,
         "input_id": input_id,
         "input_values": input_values,
     }
@@ -49,11 +49,11 @@ def create_index(
 
 
 def query_index(
-    input_table: str, input_id: str, query_string: str, **kwargs
+    fts_table: str, input_id: str, query_string: str, **kwargs
 ) -> requests.Response:
     """Query the fulltext search index for a given query."""
     payload = {
-        "input_table": input_table,
+        "fts_table": fts_table,
         "input_id": input_id,
         "query_string": query_string,
     }
@@ -80,9 +80,7 @@ def get_fts_indexes() -> dict:
 def drop_index(table_name: str) -> requests.Response:
     """Drop the fulltext search index for a specific table."""
     try:
-        return requests.post(
-            f"{API_BASE_URL}/fts/drop", json={"input_table": table_name}
-        )
+        return requests.post(f"{API_BASE_URL}/fts/drop", json={"fts_table": table_name})
     except requests.RequestException as e:
         st.error(f"Error dropping index: {e}")
         return requests.Response()
