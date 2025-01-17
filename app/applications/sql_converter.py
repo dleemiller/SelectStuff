@@ -1,7 +1,41 @@
-from typing import Type, Optional, Dict, Any
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 from datetime import datetime
 from sqlmodel import SQLModel, Field
-from pydantic import create_model
+from pydantic import BaseModel
+import json
+
+
+def _normalize_sqlmodel_type(annotation: Any) -> Any:
+    """
+    Normalize a given type annotation to something SQLModel can handle.
+    Fallback is `str`.
+    """
+    if annotation is None:
+        return str
+
+    origin = get_origin(annotation)
+    if origin is Union:
+        args = get_args(annotation)
+        non_none_args = [arg for arg in args if arg is not type(None)]
+        if len(non_none_args) == 1:
+            return Optional[_normalize_sqlmodel_type(non_none_args[0])]
+        return str
+
+    if origin in (list, dict, set, tuple):
+        return str
+
+    if isinstance(annotation, type):
+        return annotation
+
+    return str
 
 
 class SignatureToSQLModel:
@@ -10,62 +44,73 @@ class SignatureToSQLModel:
     @classmethod
     def to_sqlmodel(
         cls,
-        signature_cls,
+        signature_cls: Type[BaseModel],
         table_name: Optional[str] = None,
         base_fields: Optional[Dict[str, Any]] = None,
     ) -> Type[SQLModel]:
         """
-        Convert a DSPy Signature class to a SQLModel class.
-
-        Args:
-            signature_cls: The DSPy Signature class to convert
-            table_name: Optional table name for the SQLModel
-            base_fields: Optional dictionary of base fields to include in all models
-                        e.g., {'id': (int, Field(primary_key=True))}
-
-        Returns:
-            A new SQLModel class
+        Convert a Pydantic-based signature class into a SQLModel class.
         """
-        # Get fields from the signature
-        fields = {}
+        annotations: Dict[str, Any] = {}
+        field_definitions: Dict[str, Any] = {}
 
-        # Add base fields if provided
+        # Add base fields (e.g., default id field) if provided
         if base_fields:
-            fields.update(base_fields)
+            for field_name, (annot, field_obj) in base_fields.items():
+                annotations[field_name] = annot
+                field_definitions[field_name] = field_obj
         else:
-            # Default to just an auto-incrementing ID if no base fields provided
-            fields["id"] = (int, Field(primary_key=True))
+            annotations["id"] = Optional[int]
+            field_definitions["id"] = Field(default=None, primary_key=True)
 
-        # Map signature fields to SQLModel fields
+        # Map the signature class fields to SQLModel fields
         for name, field_info in signature_cls.model_fields.items():
-            # Get the annotation type, defaulting to str if none
-            field_type = field_info.annotation or str
+            raw_annotation = field_info.annotation
+            is_required = field_info.is_required()
+            final_annotation = _normalize_sqlmodel_type(raw_annotation)
 
-            # Make the field optional unless it's marked as required
-            if not field_info.is_required():
-                field_type = Optional[field_type]
+            # Mark as optional if not required
+            if not is_required and not str(final_annotation).startswith(
+                "typing.Optional"
+            ):
+                final_annotation = Optional[final_annotation]
 
-            # Create the SQLModel Field with appropriate settings
-            sqlmodel_field = Field(
-                default=None if not field_info.is_required() else ...,
-                description=field_info.json_schema_extra.get("desc", ""),
+            # Add to model's annotations
+            annotations[name] = final_annotation
+
+            # Build the Field(...) definition
+            field_definitions[name] = Field(
+                default=None if not is_required else ...,
+                description=(
+                    field_info.json_schema_extra.get("desc", "")
+                    if field_info.json_schema_extra
+                    else ""
+                ),
             )
-
-            fields[name] = (field_type, sqlmodel_field)
 
         # Create the model name
         model_name = f"{signature_cls.__name__}SQLModel"
 
-        # Create the SQLModel class
-        model = create_model(
-            model_name, __base__=SQLModel, __module__=signature_cls.__module__, **fields
+        # Define a custom `__init__` to handle serialization of complex fields
+        def __init__(self, **data):
+            for field_name, field_value in data.items():
+                # Serialize lists, dicts, etc., into JSON strings
+                if isinstance(field_value, (list, dict, set)):
+                    data[field_name] = json.dumps(field_value)
+            super(self.__class__, self).__init__(**data)
+
+        # Define the SQLModel class dynamically
+        model = type(
+            model_name,
+            (SQLModel,),
+            {
+                "__tablename__": table_name or model_name.lower(),
+                "__annotations__": annotations,
+                **field_definitions,
+                "__module__": signature_cls.__module__,
+                "__init__": __init__,
+                "model_config": {"table": True},
+            },
         )
-
-        # Add table_name if provided
-        if table_name:
-            model.__table_name__ = table_name
-
-        # Add table=True to make it a proper SQLModel table
-        setattr(model, "__table__", True)
 
         return model
