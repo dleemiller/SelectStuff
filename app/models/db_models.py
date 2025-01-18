@@ -57,7 +57,6 @@ class CreateFTSIndexRequest(BaseModel):
 
     Attributes:
         fts_table: Name of the table to index.
-        input_id: Primary key column name.
         input_values: List of columns to include in the search index.
         stemmer: Stemming algorithm to use (default: 'porter').
         stopwords: Stopwords language set to use (default: 'english').
@@ -69,7 +68,6 @@ class CreateFTSIndexRequest(BaseModel):
     Examples:
         >>> request = CreateFTSIndexRequest(
         ...     fts_table="articles",
-        ...     input_id="article_id",
         ...     input_values=["title", "content"],
         ...     stemmer="porter",
         ...     stopwords="english"
@@ -78,9 +76,6 @@ class CreateFTSIndexRequest(BaseModel):
 
     fts_table: str = Field(
         ..., description="Name of the table to index", example="articles"
-    )
-    input_id: str = Field(
-        ..., description="Primary key column name", example="article_id"
     )
     input_values: List[str] = Field(
         ...,
@@ -136,8 +131,4 @@ class QueryFTSIndexRequest(BaseModel):
     fields: Optional[List[str]] = Field(
         None, description="Specific fields to search", example=["title", "content"]
     )
-    k: Optional[float] = Field(1.2, description="BM25 parameter k1", example=1.2)
-    b: Optional[float] = Field(0.75, description="BM25 parameter b", example=0.75)
-    conjunctive: Optional[bool] = Field(
-        False, description="Use AND between terms", example=False
-    )
+    limit: int = Field(1, descprition="SQL LIMIT")

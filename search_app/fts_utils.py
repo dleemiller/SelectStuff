@@ -1,9 +1,7 @@
-# fts_utils.py
 import requests
 import streamlit as st
 from typing import List, Optional
 
-# This can be loaded from config if you like, or passed in:
 API_BASE_URL = "http://127.0.0.1:8000"
 
 
@@ -16,6 +14,7 @@ def get_tables() -> list:
         st.error(f"Error fetching tables: {e}")
         return []
 
+    # Adjust if your backend returns a different key (e.g. "tables")
     return resp.json().get("tables", [])
 
 
@@ -27,19 +26,20 @@ def get_table_schema(table_name: str) -> list:
     except requests.RequestException as e:
         st.error(f"Error fetching schema for table '{table_name}': {e}")
         return []
+    # Adjust if your backend returns a different key
     return resp.json().get("schema", [])
 
 
-def create_index(
-    fts_table: str, input_id: str, input_values: list, **kwargs
-) -> requests.Response:
+def create_index(fts_table: str, input_values: list, **kwargs) -> requests.Response:
     """Create a fulltext search index for a given table."""
     payload = {
         "fts_table": fts_table,
-        "input_id": input_id,
         "input_values": input_values,
     }
+    # Optional fields: stemmer, stopwords, ignore, strip_accents, lower, overwrite
+    # are passed via **kwargs
     payload.update(kwargs)
+
     try:
         return requests.post(f"{API_BASE_URL}/fts/create", json=payload)
     except requests.RequestException as e:
@@ -49,15 +49,19 @@ def create_index(
 
 
 def query_index(
-    fts_table: str, input_id: str, query_string: str, **kwargs
+    fts_table: str,
+    query_string: str,
+    fields: Optional[List[str]] = None,
+    limit: Optional[int] = 1,
 ) -> requests.Response:
     """Query the fulltext search index for a given query."""
     payload = {
         "fts_table": fts_table,
-        "input_id": input_id,
         "query_string": query_string,
+        "limit": limit if limit else 1,
     }
-    payload.update(kwargs)
+    if fields:
+        payload["fields"] = fields
 
     try:
         return requests.post(f"{API_BASE_URL}/fts/query", json=payload)
@@ -74,13 +78,17 @@ def get_fts_indexes() -> dict:
     except requests.RequestException as e:
         st.error(f"Error fetching FTS indexes: {e}")
         return {}
+    # Adjust if your backend returns a different key
     return resp.json().get("indexes", {})
 
 
 def drop_index(table_name: str) -> requests.Response:
     """Drop the fulltext search index for a specific table."""
     try:
-        return requests.post(f"{API_BASE_URL}/fts/drop", json={"fts_table": table_name})
+        # The API uses a query param named "fts_table"
+        return requests.post(
+            f"{API_BASE_URL}/fts/drop", params={"fts_table": table_name}
+        )
     except requests.RequestException as e:
         st.error(f"Error dropping index: {e}")
         return requests.Response()

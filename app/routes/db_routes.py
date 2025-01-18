@@ -166,7 +166,7 @@ def query_fts_index(
     """
     try:
         results = db_manager.search_fts(
-            fts_table=request.fts_table + "_fts",
+            fts_table=request.fts_table,
             query_string=request.query_string,
             columns=request.fields,
             limit=request.limit,

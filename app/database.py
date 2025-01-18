@@ -71,6 +71,11 @@ class SQLiteManager:
         try:
             with self.connection:
                 self.connection.execute(create_query)
+
+            # Rebuild the FTS index if a content table is specified
+            if content_table:
+                self.rebuild_fts_index(fts_table)
+
         except Exception as e:
             raise RuntimeError(f"Failed to create FTS table '{fts_table}': {e}")
 
@@ -116,6 +121,21 @@ class SQLiteManager:
         except Exception as e:
             raise RuntimeError(f"Failed to list FTS indexes: {e}")
 
+    def rebuild_fts_index(self, fts_table: str):
+        """
+        Rebuild the FTS index for the specified FTS table.
+
+        Args:
+            fts_table (str): Name of the FTS virtual table to rebuild.
+        """
+        rebuild_query = f"INSERT INTO {fts_table}({fts_table}) VALUES('rebuild');"
+        try:
+            with self.connection:
+                self.connection.execute(rebuild_query)
+            print(f"Successfully rebuilt FTS index for table '{fts_table}'.")
+        except Exception as e:
+            raise RuntimeError(f"Failed to rebuild FTS index '{fts_table}': {e}")
+
     def drop_fts_index(self, fts_table: str):
         """Drop an FTS virtual table."""
         query = f"DROP TABLE IF EXISTS {fts_table};"
@@ -151,7 +171,8 @@ class SQLiteManager:
             select_cols = f"*, bm25({fts_table}) AS rank"
 
         query = f"""
-            SELECT {select_cols}
+            SELECT 
+            rowid, {select_cols}
             FROM {fts_table}
             WHERE {fts_table} MATCH ?
             ORDER BY bm25({fts_table}) ASC
