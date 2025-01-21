@@ -77,7 +77,7 @@ def main():
     # 1. Page Config & CSS
     # -------------------------
     st.set_page_config(
-        page_title="DuckDB FTS Chat Search",
+        page_title="SQLite FTS Chat Search",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -89,22 +89,21 @@ def main():
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         </style>
-    """,
+        """,
         unsafe_allow_html=True,
     )
 
     # Reduce the size (and overall presence) of the chat icons:
     st.markdown(
         """
-    <style>
-    /* Make the user/assistant icons smaller. 
-       The elements have testid="stMessageAvatar" or you can target the SVG. */
-    [data-testid="stMessageAvatar"] svg {
-        width: 24px !important;
-        height: 24px !important;
-    }
-    </style>
-    """,
+        <style>
+        /* Make the user/assistant icons smaller. */
+        [data-testid="stMessageAvatar"] svg {
+            width: 24px !important;
+            height: 24px !important;
+        }
+        </style>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -120,19 +119,15 @@ def main():
         st.sidebar.warning("No indexed tables. Create one below.")
         selected_table = None
         schema = []
-        input_id = None
         fields = []
         display_column = None
-        k_val = 1.2
-        b_val = 0.75
-        conjunctive_val = False
+        limit_val = 1
     else:
         selected_table = st.sidebar.selectbox("Indexed Table", indexed_tables)
         # Fetch the schema for the selected table
         schema = get_table_schema(selected_table) if selected_table else []
 
-        # Find a likely "ID" column
-        input_id = None
+        # Guess a likely "ID" column for display (not used in query payload!)
         if schema:
             inferred_id = next(
                 (
@@ -140,17 +135,16 @@ def main():
                     for col in schema
                     if col["column_name"].lower() in ["id", "doc_id", "article_id"]
                 ),
-                schema[0]["column_name"],  # fallback
+                schema[0]["column_name"],  # fallback if no standard ID
             )
-            input_id = st.sidebar.selectbox("Document ID Column", [inferred_id])
 
-        # Fields to search (toggles)
+        # Fields to search
         st.sidebar.write("**Fields to Search**")
         fields = []
         if selected_table:
             possible_fields = fts_indexes.get(selected_table, [])
             for field in possible_fields:
-                toggled = st.sidebar.toggle(field, value=True, key=f"toggle_{field}")
+                toggled = st.sidebar.checkbox(field, value=True, key=f"toggle_{field}")
                 if toggled:
                     fields.append(field)
 
@@ -160,11 +154,7 @@ def main():
             "Display Column (chat response)", all_columns if all_columns else []
         )
 
-        # Advanced search
-        with st.sidebar.expander("Advanced Search Options", expanded=False):
-            k_val = st.number_input("BM25 k", 0.1, 10.0, 1.2)
-            b_val = st.number_input("BM25 b", 0.1, 1.0, 0.75)
-            conjunctive_val = st.checkbox("Require All Terms", value=False)
+        limit_val = st.sidebar.number_input("Number of Rows to Retrieve", 1, 50, 1)
 
     # -------------------------
     # 3. SIDEBAR: Admin Tools
@@ -188,29 +178,9 @@ def main():
                 if st.checkbox("Show table schema?", key="chk_show_schema"):
                     st.json(schema_create)
 
-                # Infer doc ID for create
-                inferred_id_create = next(
-                    (
-                        col["column_name"]
-                        for col in schema_create
-                        if col["column_name"].lower() in ["id", "doc_id", "article_id"]
-                    ),
-                    schema_create[0]["column_name"],
-                )
-                input_id_create = st.selectbox(
-                    "Document ID Column",
-                    [col["column_name"] for col in schema_create],
-                    index=0,
-                )
-
                 # Columns to index
-                indexable_columns = [
-                    col["column_name"]
-                    for col in schema_create
-                    if col["column_name"] != input_id_create
-                ]
                 input_values_create = st.multiselect(
-                    "Columns to Index", indexable_columns
+                    "Columns to Index", [x["column_name"] for x in schema_create]
                 )
 
                 col_a, col_b = st.columns(2)
@@ -221,14 +191,19 @@ def main():
                     stopwords = st.text_input("Stopwords", placeholder="english")
                     strip_accents = st.checkbox("Strip Accents", True)
 
+                # If you want to allow a custom ignore regex:
+                ignore_pattern = st.text_input(
+                    "Ignore Regex (Optional)", "(\\.|[^a-z])+"
+                )
                 overwrite = st.checkbox("Overwrite Existing Index", False)
+
                 if st.button("Create Index"):
                     resp = create_index(
-                        input_table=create_table_sel,
-                        input_id=input_id_create,
+                        fts_table=create_table_sel,
                         input_values=input_values_create,
-                        stemmer=stemmer,
-                        stopwords=stopwords or "english",
+                        stemmer=stemmer if stemmer != "none" else None,
+                        stopwords=stopwords or None,
+                        ignore=ignore_pattern or None,
                         strip_accents=strip_accents,
                         lower=lower,
                         overwrite=overwrite,
@@ -254,10 +229,9 @@ def main():
     # -------------------------------------------
     # 4. MAIN: Chat-like Experience
     # -------------------------------------------
-    st.title("DuckDB FTS: Chat-Style Search")
+    st.title("Select Stuff Search")
 
-    # Keep all conversation messages in session.
-    # Each message is a dict: {"role": "user"|"assistant", "content": str}
+    # Keep all conversation messages in session
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
@@ -277,30 +251,30 @@ def main():
     # Chat input pinned at bottom
     user_query = st.chat_input("Type your search here...")
     st.session_state["query_text"] = user_query
-    if user_query and selected_table and input_id and display_column:
+
+    if user_query and selected_table and display_column:
         # 1) User's message
         st.session_state["messages"].append({"role": "user", "content": user_query})
 
         # 2) Perform the search
-        # Build query params
         query_params = {
-            "input_table": selected_table,
-            "input_id": input_id,
+            "fts_table": selected_table,
             "query_string": user_query,
-            "fields": fields if fields else None,
-            "k": k_val,
-            "b": b_val,
-            "conjunctive": conjunctive_val,
+            "limit": limit_val if limit_val else 1,
         }
+        if fields:
+            query_params["fields"] = fields
 
-        resp = query_index(**query_params)  # from fts_utils
+        resp = query_index(**query_params)
         if resp and resp.status_code == 200:
             results = resp.json().get("results", [])
             if results:
                 # Show top result (or all if you like)
                 top_row = results[0]
-                # Reconstruct columns from schema plus "score"
-                col_names = [c["column_name"] for c in schema] if schema else []
+                # Reconstruct columns from schema plus "score" if the server returns it
+                col_names = (
+                    ["row_id"] + [c["column_name"] for c in schema] if schema else []
+                )
                 if "score" not in col_names:
                     col_names.append("score")
                 row_dict = dict(zip(col_names, top_row))
@@ -308,12 +282,12 @@ def main():
                 # Format the content to show back to user
                 display_val = row_dict.get(display_column, "(No content)")
                 score_val = row_dict.get("score", 0.0)
-                doc_id_val = row_dict.get(input_id, None)
+                # doc_id_val is just for display
+                # doc_id_val = row_dict.get(input_id, None) if input_id else None
+                row_id_val = row_dict.get("row_id", None)
 
-                # Build a text response (you can fancy it up with markdown)
-                assistant_text = f"{display_val}\n\n" f"_score: {score_val:.4f}_ | " + (
-                    f"    _doc_id: {doc_id_val}_" if doc_id_val else ""
-                )
+                # Build a text response
+                assistant_text = f"{display_val}\n\n" f"_rowid: {row_id_val}_"
             else:
                 assistant_text = f"No results found for '{user_query}'."
         else:

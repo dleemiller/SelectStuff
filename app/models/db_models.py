@@ -56,8 +56,7 @@ class CreateFTSIndexRequest(BaseModel):
     """Model for creating a full-text search index.
 
     Attributes:
-        input_table: Name of the table to index.
-        input_id: Primary key column name.
+        fts_table: Name of the table to index.
         input_values: List of columns to include in the search index.
         stemmer: Stemming algorithm to use (default: 'porter').
         stopwords: Stopwords language set to use (default: 'english').
@@ -68,19 +67,15 @@ class CreateFTSIndexRequest(BaseModel):
 
     Examples:
         >>> request = CreateFTSIndexRequest(
-        ...     input_table="articles",
-        ...     input_id="article_id",
+        ...     fts_table="articles",
         ...     input_values=["title", "content"],
         ...     stemmer="porter",
         ...     stopwords="english"
         ... )
     """
 
-    input_table: str = Field(
+    fts_table: str = Field(
         ..., description="Name of the table to index", example="articles"
-    )
-    input_id: str = Field(
-        ..., description="Primary key column name", example="article_id"
     )
     input_values: List[str] = Field(
         ...,
@@ -113,28 +108,20 @@ class QueryFTSIndexRequest(BaseModel):
     """Model for querying a full-text search index.
 
     Attributes:
-        input_table: Name of the table to search.
-        input_id: Primary key column name.
+        fts_table: Name of the table to search.
         query_string: Search query string.
         fields: Optional list of specific fields to search.
-        k: BM25 parameter k1 (default: 1.2).
-        b: BM25 parameter b (default: 0.75).
-        conjunctive: Whether to use AND between terms (default: False).
 
     Examples:
         >>> request = QueryFTSIndexRequest(
-        ...     input_table="articles",
-        ...     input_id="article_id",
+        ...     fts_table="articles",
         ...     query_string="machine learning artificial intelligence",
         ...     fields=["title", "content"]
         ... )
     """
 
-    input_table: str = Field(
+    fts_table: str = Field(
         ..., description="Name of the table to search", example="articles"
-    )
-    input_id: str = Field(
-        ..., description="Primary key column name", example="article_id"
     )
     query_string: str = Field(
         ...,
@@ -144,8 +131,4 @@ class QueryFTSIndexRequest(BaseModel):
     fields: Optional[List[str]] = Field(
         None, description="Specific fields to search", example=["title", "content"]
     )
-    k: Optional[float] = Field(1.2, description="BM25 parameter k1", example=1.2)
-    b: Optional[float] = Field(0.75, description="BM25 parameter b", example=0.75)
-    conjunctive: Optional[bool] = Field(
-        False, description="Use AND between terms", example=False
-    )
+    limit: int = Field(1, descprition="SQL LIMIT")

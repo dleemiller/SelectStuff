@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import dspy
 
 from .config import load_config, AppConfig
-from .database import DuckDBManager
+from .database import SQLiteManager
 
 # Import applications to ensure they are registered
 import app.applications.news
@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     # Initialize FastAPI instance
     app = FastAPI(
         title="Database Interaction API",
-        description="An API for interacting with DuckDB and running SQL queries.",
+        description="An API for interacting with SQLite and running SQL queries.",
         version="1.0.0",
     )
 
@@ -80,11 +80,11 @@ def configure_llm(config: AppConfig, api_key: str):
     dspy.configure(lm=lm)
 
 
-def initialize_database(config) -> DuckDBManager:
+def initialize_database(config) -> SQLiteManager:
     """
-    Initialize and return the DuckDBManager instance.
+    Initialize and return the SQLiteManager instance.
     """
-    return DuckDBManager(db_path=config.database)
+    return SQLiteManager(db_path=config.database)
 
 
 def register_routes(app: FastAPI, config: AppConfig):
