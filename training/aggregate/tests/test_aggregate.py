@@ -2,8 +2,7 @@ import pytest
 from typing import List, Literal, Optional
 from pydantic import BaseModel
 from unittest.mock import Mock, patch
-
-from aggregate.aggregate import LLMOutputAggregator, FieldType
+from aggregate.aggregate import LLMOutputAggregator
 from aggregate.cluster import ClusteringConfig
 
 
@@ -60,8 +59,7 @@ def complex_predictions():
 
 class TestLLMOutputAggregator:
     def test_simple_aggregation(self, simple_predictions):
-        aggregator = LLMOutputAggregator(SimpleModel)
-        result = aggregator.aggregate(SimpleModel, simple_predictions)
+        result = LLMOutputAggregator.aggregate(SimpleModel, simple_predictions)
 
         assert isinstance(result, SimpleModel)
         assert result.name == "Test"  # Most common name
@@ -69,8 +67,7 @@ class TestLLMOutputAggregator:
         assert set(result.tags) >= {"a", "b"}  # Most common tags
 
     def test_complex_aggregation(self, complex_predictions):
-        aggregator = LLMOutputAggregator(ComplexModel)
-        result = aggregator.aggregate(ComplexModel, complex_predictions)
+        result = LLMOutputAggregator.aggregate(ComplexModel, complex_predictions)
 
         assert isinstance(result, ComplexModel)
         assert result.title == "First Post"
@@ -78,23 +75,11 @@ class TestLLMOutputAggregator:
         assert len(result.tags) > 0
 
     def test_empty_predictions(self):
-        aggregator = LLMOutputAggregator(SimpleModel)
         with pytest.raises(ValueError, match="No predictions to aggregate"):
-            aggregator.aggregate(SimpleModel, [])
-
-    def test_field_type_detection(self):
-        aggregator = LLMOutputAggregator(SimpleModel)
-
-        # Test various field types
-        assert aggregator._get_field_type(str, "test") == FieldType.STRING
-        assert (
-            aggregator._get_field_type(List[str], ["a", "b"]) == FieldType.STRING_LIST
-        )
-        assert aggregator._get_field_type(int, 42) == FieldType.OTHER
+            LLMOutputAggregator.aggregate(SimpleModel, [])
 
     def test_optional_fields(self, complex_predictions):
-        aggregator = LLMOutputAggregator(ComplexModel)
-        result = aggregator.aggregate(ComplexModel, complex_predictions)
+        result = LLMOutputAggregator.aggregate(ComplexModel, complex_predictions)
 
         # Optional author field should be handled properly
         assert result.author is not None  # Should pick most common non-None value
@@ -107,28 +92,25 @@ class TestLLMOutputAggregator:
         wl.vector_similarity.return_value = Mock()
         mock_wordllama.load.return_value = wl
 
-        aggregator = LLMOutputAggregator(ComplexModel)
         # Force semantic clustering by setting a low threshold
-        aggregator.config.min_length_for_semantic = 10
-
-        result = aggregator.aggregate(ComplexModel, complex_predictions)
+        result = LLMOutputAggregator.aggregate(
+            ComplexModel, complex_predictions, threshold=1
+        )
         assert isinstance(result, ComplexModel)
 
     def test_majority_voting(self):
-        aggregator = LLMOutputAggregator(SimpleModel)
         values = ["a", "b", "a", "c", "a", "b"]
-        result = aggregator._majority_vote(values)
+        result = LLMOutputAggregator.majority_vote(values, debug=True)
         assert result == "a"
 
     def test_debug_output(self, simple_predictions, caplog):
-        """Test that debug output is properly logged"""
+        """Test that debug output is properly logged."""
         import logging
 
         caplog.set_level(logging.INFO)
 
-        # Perform the operation that should generate debug output
-        aggregator = LLMOutputAggregator(SimpleModel, debug=True)
-        result = aggregator._majority_vote(["a", "b", "a", "c"])
+        # Perform an operation that should generate debug output
+        result = LLMOutputAggregator.majority_vote(["a", "b", "a", "c"], debug=True)
 
         # Print captured logs for debugging
         print(f"Captured logs: {caplog.text}")
@@ -154,8 +136,7 @@ class TestEdgeCases:
             self.ModelWithLiteral(status="pending"),
         ]
 
-        aggregator = LLMOutputAggregator(self.ModelWithLiteral)
-        result = aggregator.aggregate(self.ModelWithLiteral, predictions)
+        result = LLMOutputAggregator.aggregate(self.ModelWithLiteral, predictions)
         assert result.status == "active"
 
     def test_all_none_optional_field(self):
@@ -176,34 +157,25 @@ class TestEdgeCases:
             ),
         ]
 
-        aggregator = LLMOutputAggregator(ComplexModel)
-        result = aggregator.aggregate(ComplexModel, predictions)
+        result = LLMOutputAggregator.aggregate(ComplexModel, predictions)
         assert result.author is None
 
     def test_required_field_aggregation(self):
-        """Test handling of required fields with None values during aggregation"""
+        """Test handling of required fields with None values during aggregation."""
         from pydantic import BaseModel
 
         class RequiredFieldModel(BaseModel):
             required_field: str
 
-        # Create predictions where some fields will be None after extraction
         predictions = [
-            Mock(required_field="test1"),
-            Mock(required_field="test2"),
-            Mock(
-                required_field=None
-            ),  # This one has None but won't cause Pydantic validation
+            {"required_field": "test1"},
+            {"required_field": "test2"},
+            {"required_field": None},
         ]
 
-        aggregator = LLMOutputAggregator(RequiredFieldModel)
-
-        # Should work because we have some non-None values
-        result = aggregator.aggregate(RequiredFieldModel, predictions)
+        result = LLMOutputAggregator.aggregate(RequiredFieldModel, predictions)
         assert result.required_field in ["test1", "test2"]
 
-        # Now test with all None values
-        all_none_predictions = [Mock(required_field=None), Mock(required_field=None)]
-
+        all_none_predictions = [{"required_field": None}, {"required_field": None}]
         with pytest.raises(ValueError, match="No values found for required field"):
-            aggregator.aggregate(RequiredFieldModel, all_none_predictions)
+            LLMOutputAggregator.aggregate(RequiredFieldModel, all_none_predictions)

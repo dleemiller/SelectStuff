@@ -23,7 +23,72 @@ dependencies = [
     "cloudpickle (>=3.1.1,<4.0.0)"
 ]
 
+[tool.poetry]
+packages = [
+    {include = "app"},
+    {include = "search_app"},
+]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4.0,<8.0.0"
+pytest-cov = ">=4.1.0,<5.0.0"
+pytest-mock = ">=3.11.0,<4.0.0"
+tox = ">=4.10.0,<5.0.0"
+coverage = ">=7.3.2,<8.0.0"
+mypy = ">=1.6.0,<2.0.0"
+flake8 = ">=6.1.0,<7.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.run]
+source = [
+    "app",
+    "search",
+    "review",
+    "database",
+    "main",
+]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+skip_covered = true
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.4.0"
+addopts = "--cov=app --cov=search --cov=review --cov=database --cov=main --cov-report=term-missing --cov-fail-under=90"
+testpaths = [
+    "tests",
+]
+
+[tool.tox]
+envlist = ["py{3.12}", "mypy", "flake8", "pytest"]
+
+[tool.tox.environment.pytest]
+description = "Run tests and collect coverage"
+deps = [
+    "pytest",
+    "pytest-cov",
+]
+commands = [
+    "pytest",
+]
+
+[tool.tox.environment.mypy]
+description = "Run type checking with mypy"
+deps = ["mypy"]
+commands = ["mypy ."]
+
+[tool.tox.environment.flake8]
+description = "Lint code using flake8"
+deps = ["flake8"]
+commands = ["flake8 ."]
+
