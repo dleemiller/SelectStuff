@@ -9,12 +9,26 @@ from .models import get_request_model
 from .database import SQLiteManager
 
 
+# models.py
+
+from typing import Callable, Optional, Type
+
+import yaml
+from pydantic import BaseModel, field_validator
+from fastapi import APIRouter
+
+from .applications import get_stuff
+from .models import get_request_model
+from .database import SQLiteManager
+
+
 class RouteConfig(BaseModel):
     name: str
     path: str
     application: str
     table: str
     request_model: Type[BaseModel]
+    tags: list[str] = ["Default"]
 
     @field_validator("application")
     def validate_application(cls, application):
@@ -44,6 +58,7 @@ class RouteConfig(BaseModel):
         return self.path, route_handler
 
 
+
 class ModelConfig(BaseModel):
     name: str
     ipaddr: Optional[str] = None
@@ -59,7 +74,7 @@ class AppConfig(BaseModel):
         """Register all routes to the provided router."""
         for route in self.routes:
             path, handler = route.create_route()
-            router.post(path)(handler)
+            router.post(path, tags=route.tags)(handler)
 
 
 def load_config(yaml_file: str) -> AppConfig:
