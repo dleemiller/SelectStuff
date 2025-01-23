@@ -94,10 +94,10 @@ def register_routes(app: FastAPI, config: AppConfig):
     # Include the database-related routes
     app.include_router(db_router)
 
-    # Dynamically register additional routes defined in config
+    # Fix: Pass the tags when registering routes
     for route in config.routes:
         path, handler = route.create_route(app.state.db_manager)
-        app.post(path)(handler)
+        app.post(path, tags=route.tags)(handler)
 
 
 # ------------------------------

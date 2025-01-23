@@ -2,10 +2,49 @@
   "manifest_version": 3,
   "name": "Send Selected Text to Endpoint",
   "version": "1.0",
-  "permissions": ["contextMenus", "storage", "activeTab"],
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting",
+    "notifications"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "refresh-context-menu": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Refresh the context menu"
+    },
+    "open-options-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Open the options page"
+    }
+  }
 }
-
