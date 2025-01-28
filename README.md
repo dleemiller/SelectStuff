@@ -50,3 +50,8 @@ Open chromium, click on the "puzzle piece" extension button:
 --> Options (set IP of fast api server)
 ```
 
+## To generate requirements.txt
+```bash
+$ poetry self add poetry-plugin-export
+$ poetry export -f requirements.txt --output requirements.txt --without-hashes
+```
