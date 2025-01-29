@@ -14,6 +14,8 @@ class NewsAppSignature(dspy.Signature):
         desc="Article title or a generated one if not found."
     )
 
+    snippet: str = dspy.OutputField(desc="Short high level overview")
+
     publication_date: Optional[date] = dspy.OutputField(desc="Publication date.")
 
     # CATEGORIZATION
