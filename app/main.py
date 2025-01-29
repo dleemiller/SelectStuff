@@ -8,20 +8,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from prometheus_fastapi_instrumentator import Instrumentator
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 # Import applications to ensure they are registered
-import app.applications.news
-from app.models.inputs import TextInputRequest
-
+import app.applications.news #noqa F401
+from app.models.inputs import TextInputRequest #noqa F401
 from .config import AppConfig, load_config
 from .database import SQLiteManager
 from .routes.db_routes import router as db_router
@@ -43,33 +38,30 @@ APIKEY = os.getenv("APIKEY")
 # ------------------------------
 # OpenTelemetry Configuration
 # ------------------------------
-def setup_tracer(application: FastAPI):
-    # Set up the tracer provider
-    trace.set_tracer_provider(
-        TracerProvider(resource=Resource.create({SERVICE_NAME: "fastapi-app"}))
-    )
-    tracer = trace.get_tracer(__name__)
+# resource = Resource(
+#     attributes={
+#         "service.name": "SelectStuff",
+#         "os-version": 1234.56,
+#         "cluster": "Local",
+#         "datacentre": "Local",
+#     }
+# )
 
-    # Configure the Jaeger exporter
-    jaeger_exporter = JaegerExporter(
-        agent_host_name=os.getenv("JAEGER_AGENT_HOST", "jaeger"),
-        agent_port=int(os.getenv("JAEGER_AGENT_PORT", 6831))
-        # collector_endpoint="http://jaeger:14250/api/traces"
-    )
 
-    # Add the exporter to the tracer provider
-    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
+# 1. Create a Resource for your service
+resource = Resource.create({"service.name": "fastapi"})
 
-    # Instrument FastAPI
-    FastAPIInstrumentor.instrument_app(
-        application, tracer_provider=trace.get_tracer_provider()
-    )
-    RequestsInstrumentor().instrument()
-    SQLAlchemyInstrumentor().instrument()
-    # Instrument logging
-    LoggingInstrumentor().instrument(set_logging_format=True)
+# 2. Create a TracerProvider and add the OTLP gRPC exporter
+trace.set_tracer_provider(TracerProvider(resource=resource))
+tracer_provider = trace.get_tracer_provider()
 
-    return tracer
+# Configure OTLP via environment variables or explicitly:
+#   endpoint="http://jaeger:4317", insecure=True
+otlp_exporter = OTLPSpanExporter()
+
+span_processor = BatchSpanProcessor(otlp_exporter)
+tracer_provider.add_span_processor(span_processor)
+tracer = trace.get_tracer(__name__)
 
 
 # ------------------------------
@@ -86,10 +78,16 @@ def create_app() -> FastAPI:
         version="1.0.0",
     )
 
+    # Configure CORS middleware
+    origins = [
+        "chrome-extension://*",  # Allow Chrome extensions
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
     # Middleware for CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Restrict in production
+        allow_origins=origins,  # Restrict in production
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -99,15 +97,16 @@ def create_app() -> FastAPI:
     app_config = load_config("config.yml")
 
     # Configure LLM
-    configure_llm(app_config, APIKEY)
+    configure_llm(app_config, APIKEY, callbacks=[])
 
     # Store global objects in application state
     app.state.db_manager = initialize_database(app_config)
 
+    # 4. Instrument FastAPI
+    FastAPIInstrumentor.instrument_app(app)
+
     # Register routes
     register_routes(app, app_config)
-    setup_tracer(app)
-    Instrumentator().instrument(app).expose(app)
 
     return app
 
@@ -115,11 +114,11 @@ def create_app() -> FastAPI:
 # ------------------------------
 # Helper Functions
 # ------------------------------
-def configure_llm(config: AppConfig, api_key: str):
+def configure_llm(config: AppConfig, api_key: str, callbacks: list):
     """
     Configure the LLM for use across the application.
     """
-    lm = dspy.LM(config.model.name, api_key=api_key, cache=True)
+    lm = dspy.LM(config.model.name, api_key=api_key, cache=True, callbacks=[])
     dspy.configure(lm=lm)
 
 
@@ -132,15 +131,23 @@ def initialize_database(config) -> SQLiteManager:
 
 def register_routes(app: FastAPI, config: AppConfig):
     """
-    Register all application routes.
+    Register all application routes with proper decorator wrapping.
     """
     # Include the database-related routes
     app.include_router(db_router)
 
-    # Dynamically register additional routes defined in config. Pass Tags.
+    # Dynamically register additional routes defined in config
     for route in config.routes:
-        path, handler = route.create_route(app.state.db_manager)
-        app.post(path, tags=route.tags)(handler)
+        path, base_handler = route.create_route(app.state.db_manager)
+
+        # Create the span name for tracing
+        span_name = f"handle_{route.tags[0]}_{path.replace('/','_')}"
+
+        # Define the wrapped handler that maintains type hints and request model
+        @app.post(path, tags=route.tags)
+        async def wrapped_handler(data: route.request_model) -> dict:
+            with tracer.start_as_current_span(span_name):
+                return await base_handler(data)
 
 
 # ------------------------------
@@ -152,4 +159,5 @@ application = create_app()
 # Health Check
 @application.get("/health")
 def health_check():
+    """Health check endpoint to verify the service is running."""
     return {"status": "healthy"}

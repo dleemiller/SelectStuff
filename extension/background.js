@@ -23,7 +23,7 @@ async function getServerConfig() {
   try {
     const data = await chrome.storage.sync.get(["serverAddress", "apiKey"]);
     return {
-      serverAddress: data.serverAddress || "http://127.0.0.1:8000",
+      serverAddress: data.serverAddress || "http://localhost:8000",
       apiKey: data.apiKey || ""
     };
   } catch (error) {
@@ -37,39 +37,80 @@ async function getServerConfig() {
 }
 
 
-// Fetch available POST endpoints from FastAPI
 async function fetchEndpoints() {
   const { serverAddress, apiKey } = await getServerConfig();
-  console.log(`Fetching endpoints from: ${serverAddress}/openapi.json`);
+  
+  console.log('Attempting to fetch endpoints with config:', {
+    serverAddress,
+    hasApiKey: !!apiKey
+  });
 
   try {
-    const response = await fetch(`${serverAddress}/openapi.json`, {
+    // Try root endpoint first
+    const rootCheck = await fetch(`${serverAddress}/`);
+    console.log('Root endpoint check:', {
+      ok: rootCheck.ok,
+      status: rootCheck.status
+    });
+
+    // Then health check
+    const healthCheck = await fetch(`${serverAddress}/health`, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
       headers: {
-        "Authorization": `Bearer ${apiKey}`
+        'Accept': 'application/json'
+      }
+    });
+    console.log('Health check response:', {
+      ok: healthCheck.ok,
+      status: healthCheck.status
+    });
+
+    // Then fetch the OpenAPI schema
+    const response = await fetch(`${serverAddress}/openapi.json `, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Accept': 'application/json'
       }
     });
 
+    console.log('OpenAPI response headers:', {
+      cors: response.headers.get('access-control-allow-origin'),
+      contentType: response.headers.get('content-type')
+    });
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error response body:', errorText);
       throw new Error(`Failed to fetch openapi.json: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log('OpenAPI schema paths:', Object.keys(data.paths));
 
-    // Extract and filter POST endpoints with desired tags
+    // Process endpoints...
     const postEndpoints = [];
-
     for (const path in data.paths) {
       const methods = data.paths[path];
+      console.log(`Examining path ${path}:`, methods);
+
       for (const method in methods) {
         if (method.toLowerCase() === "post") {
+          const endpointInfo = methods[method];
+          console.log(`Found POST endpoint at ${path}:`, endpointInfo);
+          
           const endpoint = {
             path,
             method: method.toUpperCase(),
-            tags: methods[method].tags || []
+            tags: endpointInfo.tags || []
           };
 
-          // Check if the endpoint has any desired tags
+          console.log(`Endpoint tags:`, endpoint.tags);
           const hasDesiredTag = endpoint.tags.some(tag => DESIRED_TAGS.includes(tag));
+          console.log(`Has desired tag (${DESIRED_TAGS.join(', ')}):`, hasDesiredTag);
 
           if (hasDesiredTag) {
             postEndpoints.push(endpoint);
@@ -78,18 +119,19 @@ async function fetchEndpoints() {
       }
     }
 
-    // Sort endpoints alphabetically by path
-    postEndpoints.sort((a, b) => a.path.localeCompare(b.path));
-
-    console.log("Filtered POST endpoints with desired tags:", postEndpoints);
+    console.log('Final filtered endpoints:', postEndpoints);
     return postEndpoints;
 
   } catch (error) {
-    console.error("Error fetching endpoints:", error);
-    return [];
+    console.error('Detailed error in fetchEndpoints:', {
+      message: error.message,
+      stack: error.stack,
+      serverAddress,
+      type: error.name
+    });
+    throw error;
   }
 }
-
 
 function getRouteStructure(path) {
   // Split path and remove empty parts

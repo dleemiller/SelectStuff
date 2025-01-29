@@ -1,119 +1,22 @@
 services:
-  backend:
+  jaeger:
+    image: jaegertracing/all-in-one:1.42
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC port
+      - "4318:4318"    # OTLP HTTP port (not strictly needed for gRPC, but often exposed)
+  
+  fastapi-app:
     build: .
+    container_name: fastapi-app
     ports:
       - "8000:8000"
     environment:
-      - APIKEY=${APIKEY}
-      - JAEGER_AGENT_HOST=jaeger
-      - JAEGER_AGENT_PORT=6831
-      - JAEGER_SAMPLER_TYPE=const
-      - JAEGER_SAMPLER_PARAM=1
-      - OTEL_SERVICE_NAME=fastapi-app
-      - OTEL_TRACES_SAMPLER=always_on
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4317
-      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.41
-    ports:
-      - "6831:6831/udp"   # Jaeger agent for OpenTelemetry
-      - "16686:16686"     # Jaeger UI
-      - "14250:14250"     # Jaeger collector gRPC
-      - "14268:14268"     # Jaeger collector HTTP
-      - "14269:14269"     # Jaeger admin port
-      - "9411:9411"       # Zipkin endpoint (optional)
-    environment:
-      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
-      - METRICS_STORAGE_TYPE=prometheus
-      - PROMETHEUS_SERVER_URL=http://prometheus:9090  # Custom environment variable (if needed)
-    networks:
-      - app-network
+      # OTEL_EXPORTER_OTLP_TRACES_ENDPOINT points to our Jaeger service (OTLP gRPC port).
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://jaeger:4317"
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: "grpc"
+      APIKEY: ${APIKEY}
     depends_on:
-      - prometheus
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:16686"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
-      - prometheus-data:/prometheus
-    ports:
-      - "9090:9090"
-    networks:
-      - app-network
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    volumes:
-      - ./alertmanager/config.yml:/etc/alertmanager/config.yml
-    ports:
-      - "9093:9093"
-    networks:
-      - app-network
-    depends_on:
-      - prometheus
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9093/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    networks:
-      - app-network
-    depends_on:
-      - prometheus
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # Change this to a secure password
-    volumes:
-      - grafana-storage:/var/lib/grafana
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  collector:
-      image: otel/opentelemetry-collector:latest
-      volumes:
-        - ./collector-config.yml:/etc/otelcol/config.yaml
-      ports:
-        - "4317:4317"   # OTLP gRPC
-        - "4318:4318"   # OTLP HTTP
-      networks:
-        - app-network
-      depends_on:
-        - jaeger
-        - prometheus
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  grafana-storage:
-  prometheus-data:
+      - jaeger

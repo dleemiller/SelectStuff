@@ -10,14 +10,15 @@ This module provides FastAPI routes for database operations including:
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Optional
-
 from app.database import SQLiteManager
 from app.models.db_models import (
     ExecuteQueryRequest,
-    SearchRequest,
     CreateFTSIndexRequest,
     QueryFTSIndexRequest,
 )
+from opentelemetry import trace  # Add this import
+
+tracer = trace.get_tracer(__name__)
 
 
 def get_db_manager(request: Request) -> SQLiteManager:
@@ -35,6 +36,7 @@ def get_db_manager(request: Request) -> SQLiteManager:
 router = APIRouter()
 
 
+@tracer.start_as_current_span("get_tables")
 @router.get("/tables")
 def get_tables(db_manager: SQLiteManager = Depends(get_db_manager)) -> dict:
     """List all tables in the database.
@@ -48,6 +50,7 @@ def get_tables(db_manager: SQLiteManager = Depends(get_db_manager)) -> dict:
     Raises:
         HTTPException: If table retrieval fails.
     """
+
     try:
         query = """
         SELECT name
@@ -62,6 +65,7 @@ def get_tables(db_manager: SQLiteManager = Depends(get_db_manager)) -> dict:
         raise HTTPException(status_code=500, detail="Failed to retrieve tables.")
 
 
+@tracer.start_as_current_span("get_table_schema")
 @router.get(
     "/tables/{table_name}/schema",
     summary="Get Table Schema",
@@ -95,6 +99,7 @@ def get_table_schema(
         )
 
 
+@tracer.start_as_current_span("get_query")
 @router.post("/query")
 def query(
     request: ExecuteQueryRequest, db_manager: SQLiteManager = Depends(get_db_manager)
@@ -119,6 +124,7 @@ def query(
         raise HTTPException(status_code=400, detail="Failed to execute query.")
 
 
+@tracer.start_as_current_span("post_fts_create")
 @router.post("/fts/create")
 def create_fts_index(
     request: CreateFTSIndexRequest, db_manager: SQLiteManager = Depends(get_db_manager)
@@ -148,6 +154,7 @@ def create_fts_index(
         raise HTTPException(status_code=500, detail="Failed to create FTS index.")
 
 
+@tracer.start_as_current_span("post_fts_query")
 @router.post("/fts/query")
 def query_fts_index(
     request: QueryFTSIndexRequest, db_manager: SQLiteManager = Depends(get_db_manager)
@@ -177,6 +184,7 @@ def query_fts_index(
         raise HTTPException(status_code=500, detail="Failed to query FTS index.")
 
 
+@tracer.start_as_current_span("post_fts_update")
 @router.post("/fts/update")
 def update_fts_index(
     table_name: str,
@@ -221,6 +229,7 @@ def update_fts_index(
         raise HTTPException(status_code=500, detail=f"Failed to update FTS index: {e}")
 
 
+@tracer.start_as_current_span("post_fts_drop")
 @router.post("/fts/drop")
 def drop_fts_index(
     fts_table: str, db_manager: SQLiteManager = Depends(get_db_manager)
@@ -242,6 +251,7 @@ def drop_fts_index(
         raise HTTPException(status_code=500, detail="Failed to drop FTS index.")
 
 
+@tracer.start_as_current_span("get_fts_list")
 @router.get(
     "/fts/list",
     summary="List FTS Indexes",

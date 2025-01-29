@@ -9,19 +9,6 @@ from .models import get_request_model
 from .database import SQLiteManager
 
 
-# models.py
-
-from typing import Callable, Optional, Type
-
-import yaml
-from pydantic import BaseModel, field_validator
-from fastapi import APIRouter
-
-from .applications import get_stuff
-from .models import get_request_model
-from .database import SQLiteManager
-
-
 class RouteConfig(BaseModel):
     name: str
     path: str
@@ -56,7 +43,6 @@ class RouteConfig(BaseModel):
             return application.process(data.dict())
 
         return self.path, route_handler
-
 
 
 class ModelConfig(BaseModel):
