@@ -68,6 +68,10 @@ def _(ref_val: list, pred_val: list, wl) -> float:
     Returns:
         float: A similarity score between 0.0 and 1.0.
     """
+    # screen out potential nulls, empty strings
+    ref_val = list(filter(lambda x: x and len(x.strip()) > 0, ref_val))
+    pred_val = list(filter(lambda x: x and len(x.strip()) > 0, pred_val))
+
     if not ref_val or not pred_val:
         return 0.0
 
