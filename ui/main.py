@@ -92,6 +92,14 @@ def display_response_as_panel(response_text: str):
     st.markdown(panel_html, unsafe_allow_html=True)
 
 
+def clear_chat():
+    """
+    Clears the conversation history and forces a rerun so that the chat area updates.
+    """
+    st.session_state["messages"] = []
+    st.rerun()
+
+
 def main():
     """
     Main function to run the multi-app FTS Streamlit interface.
@@ -106,12 +114,17 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded",
     )
-
     # Hide Streamlit menu and footer.
+    # st.markdown("""
+    #     <style>
+    #     #MainMenu {visibility: hidden;}
+    #     footer {visibility: hidden;}
+    #     </style>
+    #     """, unsafe_allow_html=True)
     st.markdown(
         """
         <style>
-        #MainMenu {visibility: hidden;}
+        div[data-testid="stStatusWidget"] {visibility: hidden;}
         footer {visibility: hidden;}
         </style>
         """,
@@ -131,7 +144,7 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Load enabled apps from environment variable; default to "news,blog" if not set.
+    # Load enabled apps from environment variable; default to "news" if not set.
     enabled_apps_env = os.environ.get("ENABLED_APPS", "news")
     enabled_apps = [app.strip() for app in enabled_apps_env.split(",") if app.strip()]
 
@@ -323,12 +336,10 @@ def main():
         st.session_state["messages"].append(
             {"role": "assistant", "content": assistant_text}
         )
-        # st.experimental_rerun()
+        st.rerun()
 
     # Option to clear the chat.
-    if st.button("Clear Chat"):
-        st.session_state["messages"] = []
-        # st.experimental_rerun()
+    st.button("Clear Chat", on_click=clear_chat, key="clear_chat_btn")
 
 
 if __name__ == "__main__":
