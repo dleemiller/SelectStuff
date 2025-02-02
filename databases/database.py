@@ -18,7 +18,6 @@ _db_managers_by_path: dict[str, "SQLiteManager"] = {}
 _lock = threading.Lock()
 
 
-
 def initialize_database(config) -> "SQLiteManager":
     """
     Create or retrieve a SQLiteManager based on the config's database path.
@@ -32,6 +31,7 @@ def initialize_database(config) -> "SQLiteManager":
         if db_path not in _db_managers_by_path:
             _db_managers_by_path[db_path] = SQLiteManager(db_path=db_path)
         return _db_managers_by_path[db_path]
+
 
 class SQLiteManager:
     """Configuration for database connections and SQLite-specific features."""

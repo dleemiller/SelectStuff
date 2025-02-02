@@ -19,7 +19,7 @@ from applications.models.inputs import TextInputRequest  # noqa F401
 
 
 # from .config import AppConfig, load_config
-from .routes.db_routes import router as db_router
+# from ..databases.db_routes import router as db_router
 
 # ------------------------------
 # Configure Logging
@@ -105,7 +105,7 @@ def create_app() -> FastAPI:
     # Store global objects in application state
     # app.state.db_manager = initialize_database(app_config)
     app.include_router(router=apps_router)
-    app.include_router(router=db_router)
+    # app.include_router(router=db_router)
     # 4. Instrument FastAPI
     # FastAPIInstrumentor.instrument_app(app)
 

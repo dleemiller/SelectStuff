@@ -1,60 +1,156 @@
+"""
+Utility functions for interacting with the FastAPI backend.
+
+This module defines functions to fetch tables, table schemas, full-text search
+indexes, and to create, query, or drop FTS indexes for a given application.
+Additionally, aggregator functions are provided to fetch data for all enabled apps.
+"""
+
 import requests
 import streamlit as st
-from typing import List, Optional
+from typing import Optional
 
+# Base URL for your FastAPI server.
 API_BASE_URL = "http://127.0.0.1:8000"
 
 
-def get_tables() -> list:
-    """Fetches the list of available tables from the backend."""
+def get_tables(app: str) -> list[str]:
+    """
+    Fetches the list of available tables from the backend for a given application.
+
+    Args:
+        app (str): The application identifier (e.g. "news" or "blog").
+
+    Returns:
+        list[str]: A list of table names.
+    """
     try:
-        resp = requests.get(f"{API_BASE_URL}/tables")
+        resp = requests.get(f"{API_BASE_URL}/v1/{app}/db/tables")
         resp.raise_for_status()
     except requests.RequestException as e:
-        st.error(f"Error fetching tables: {e}")
+        st.error(f"Error fetching tables for app '{app}': {e}")
         return []
-
-    # Adjust if your backend returns a different key (e.g. "tables")
     return resp.json().get("tables", [])
 
 
-def get_table_schema(table_name: str) -> list:
-    """Fetch the schema for a given table."""
+def get_all_tables(enabled_apps: list[str]) -> dict[str, list[str]]:
+    """
+    Aggregates the list of available tables for all enabled applications.
+
+    Args:
+        enabled_apps (list[str]): A list of application identifiers.
+
+    Returns:
+        dict[str, list[str]]: A dictionary mapping each app to its list of tables.
+    """
+    aggregated = {}
+    for app in enabled_apps:
+        aggregated[app] = get_tables(app)
+    return aggregated
+
+
+def get_table_schema(table_name: str, app: str) -> list[dict]:
+    """
+    Fetches the schema for a given table from the backend for a specified application.
+
+    Args:
+        table_name (str): The name of the table.
+        app (str): The application identifier.
+
+    Returns:
+        list[dict]: The schema of the table as a list of dictionaries.
+    """
     try:
-        resp = requests.get(f"{API_BASE_URL}/tables/{table_name}/schema")
+        resp = requests.get(f"{API_BASE_URL}/v1/{app}/db/tables/{table_name}/schema")
         resp.raise_for_status()
     except requests.RequestException as e:
-        st.error(f"Error fetching schema for table '{table_name}': {e}")
+        st.error(f"Error fetching schema for table '{table_name}' in app '{app}': {e}")
         return []
-    # Adjust if your backend returns a different key
     return resp.json().get("schema", [])
 
 
-def create_index(fts_table: str, input_values: list, **kwargs) -> requests.Response:
-    """Create a fulltext search index for a given table."""
+def get_fts_indexes(app: str) -> dict:
+    """
+    Fetches the full-text search indexes from the backend for a given application.
+
+    Args:
+        app (str): The application identifier.
+
+    Returns:
+        dict: A dictionary of full-text search indexes.
+    """
+    try:
+        resp = requests.get(f"{API_BASE_URL}/v1/{app}/db/fts/list")
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        st.error(f"Error fetching FTS indexes for app '{app}': {e}")
+        return {}
+    return resp.json().get("indexes", {})
+
+
+def get_all_fts_indexes(enabled_apps: list[str]) -> dict[str, dict]:
+    """
+    Aggregates the full-text search indexes for all enabled applications.
+
+    Args:
+        enabled_apps (list[str]): A list of application identifiers.
+
+    Returns:
+        dict[str, dict]: A dictionary mapping each app to its FTS indexes.
+    """
+    aggregated = {}
+    for app in enabled_apps:
+        aggregated[app] = get_fts_indexes(app)
+    return aggregated
+
+
+def create_index(
+    fts_table: str, input_values: list[str], app: str, **kwargs
+) -> requests.Response:
+    """
+    Creates a full-text search index for a given table in a specified application.
+
+    Args:
+        fts_table (str): The name of the table to index.
+        input_values (list[str]): list of columns to include in the index.
+        app (str): The application identifier.
+        **kwargs: Additional optional parameters (e.g., stemmer, stopwords).
+
+    Returns:
+        requests.Response: The HTTP response from the backend.
+    """
     payload = {
         "fts_table": fts_table,
         "input_values": input_values,
     }
-    # Optional fields: stemmer, stopwords, ignore, strip_accents, lower, overwrite
-    # are passed via **kwargs
     payload.update(kwargs)
-
     try:
-        return requests.post(f"{API_BASE_URL}/fts/create", json=payload)
+        return requests.post(f"{API_BASE_URL}/v1/{app}/db/fts/create", json=payload)
     except requests.RequestException as e:
-        st.error(f"Error creating index: {e}")
-        # Return a dummy response with error code
+        st.error(f"Error creating index for app '{app}': {e}")
         return requests.Response()
 
 
 def query_index(
     fts_table: str,
     query_string: str,
-    fields: Optional[List[str]] = None,
+    app: str,
+    fields: Optional[list[str]] = None,
     limit: Optional[int] = 1,
 ) -> requests.Response:
-    """Query the fulltext search index for a given query."""
+    """
+    Queries the full-text search index for a given table in a specified application.
+
+    Args:
+        fts_table (str): The table to search.
+        query_string (str): The search query.
+        app (str): The application identifier.
+        fields (Optional[list[str]]): Specific fields to search.
+        limit (Optional[int]): The maximum number of results (default is 1).
+
+    Returns:
+        requests.Response: The HTTP response from the backend.
+    """
     payload = {
         "fts_table": fts_table,
         "query_string": query_string,
@@ -62,33 +158,28 @@ def query_index(
     }
     if fields:
         payload["fields"] = fields
-
     try:
-        return requests.post(f"{API_BASE_URL}/fts/query", json=payload)
+        return requests.post(f"{API_BASE_URL}/v1/{app}/db/fts/query", json=payload)
     except requests.RequestException as e:
-        st.error(f"Error querying index: {e}")
+        st.error(f"Error querying index for app '{app}': {e}")
         return requests.Response()
 
 
-def get_fts_indexes() -> dict:
-    """List the existing fulltext indexes on the server."""
-    try:
-        resp = requests.get(f"{API_BASE_URL}/fts/list")
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        st.error(f"Error fetching FTS indexes: {e}")
-        return {}
-    # Adjust if your backend returns a different key
-    return resp.json().get("indexes", {})
+def drop_index(fts_table: str, app: str) -> requests.Response:
+    """
+    Drops the full-text search index for a specified table in a given application.
 
+    Args:
+        fts_table (str): The table whose index should be dropped.
+        app (str): The application identifier.
 
-def drop_index(table_name: str) -> requests.Response:
-    """Drop the fulltext search index for a specific table."""
+    Returns:
+        requests.Response: The HTTP response from the backend.
+    """
     try:
-        # The API uses a query param named "fts_table"
         return requests.post(
-            f"{API_BASE_URL}/fts/drop", params={"fts_table": table_name}
+            f"{API_BASE_URL}/v1/{app}/db/fts/drop", params={"fts_table": fts_table}
         )
     except requests.RequestException as e:
-        st.error(f"Error dropping index: {e}")
+        st.error(f"Error dropping index for app '{app}': {e}")
         return requests.Response()
