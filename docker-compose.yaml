@@ -6,8 +6,8 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
       - "4317:4317"   # OTLP gRPC
-      # - "4318:4318"   # OTLP HTTP
-      # - "8889:8889"   # Prometheus scrape port
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus scrape port
     depends_on:
       - jaeger
       - prometheus
@@ -50,3 +50,11 @@ services:
       - "8000:8000"
     depends_on:
       - jaeger
+
+  search_app:
+    build: ./search_app
+    container_name: search_app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi-app
