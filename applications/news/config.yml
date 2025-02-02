@@ -1,0 +1,45 @@
+---
+routes:
+  - name: junk_test
+    path: /junk/test
+    application: news
+    table: junk_1
+    request_model: TextInput
+    # tags:
+    #   - "Test"
+    #   - "Select"
+  - name: news_politics
+    path: /news/politics
+    application: news
+    table: politics_1
+    request_model: TextInput
+    # tags:
+    #   - "News"
+    #   - "Select"
+    #   - "Politics"
+
+  - name: news_technology
+    path: /news/technology
+    application: news
+    table: technology_1
+    request_model: TextInput
+  - name: news_technology_llama
+    path: /news/technology/llama
+    application: news
+    table: technology__llama_1
+    request_model: TextInput
+  - name: news_technology_arxiv
+    path: /news/technology/arxiv
+    application: news
+    table: technology_arxiv_1
+    request_model: TextInput
+    # tags:
+    #   - "News"
+    #   - "Select"
+    #   - "Technology"
+
+database: data/llm_data.db
+model:
+  name: openrouter/meta-llama/llama-3.2-3b-instruct
+  ipaddr: null
+  apikey: null

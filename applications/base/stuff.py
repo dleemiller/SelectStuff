@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Type
-from pydantic import BaseModel
+from typing import Dict, Callable
 
-from app.database import SQLiteManager
-
+from databases.database import SQLiteManager
 
 _application_stuff: Dict[str, Callable] = {}
 

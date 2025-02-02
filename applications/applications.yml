@@ -1,0 +1,12 @@
+subapps:
+  news:
+    enabled: true
+    prefix: "/news"
+    include_in_schema: true
+    app_name: "news"
+
+  search:
+    enabled: false
+    prefix: "/search"
+    include_in_schema: true
+    app_name: "search"

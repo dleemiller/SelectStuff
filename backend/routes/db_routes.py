@@ -10,8 +10,8 @@ This module provides FastAPI routes for database operations including:
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Optional
-from app.database import SQLiteManager
-from app.models.db_models import (
+from databases.database import SQLiteManager
+from databases.models import (
     ExecuteQueryRequest,
     CreateFTSIndexRequest,
     QueryFTSIndexRequest,
@@ -37,7 +37,7 @@ router = APIRouter()
 
 
 @tracer.start_as_current_span("get_tables")
-@router.get("/tables")
+@router.get("/tables", tags=["Database"])
 def get_tables(db_manager: SQLiteManager = Depends(get_db_manager)) -> dict:
     """List all tables in the database.
 
@@ -68,6 +68,7 @@ def get_tables(db_manager: SQLiteManager = Depends(get_db_manager)) -> dict:
 @tracer.start_as_current_span("get_table_schema")
 @router.get(
     "/tables/{table_name}/schema",
+    tags=["Database"],
     summary="Get Table Schema",
     description="Retrieve the schema of a specific table.",
 )
@@ -100,7 +101,7 @@ def get_table_schema(
 
 
 @tracer.start_as_current_span("get_query")
-@router.post("/query")
+@router.post("/query", tags=["Database"])
 def query(
     request: ExecuteQueryRequest, db_manager: SQLiteManager = Depends(get_db_manager)
 ) -> dict:
@@ -125,7 +126,7 @@ def query(
 
 
 @tracer.start_as_current_span("post_fts_create")
-@router.post("/fts/create")
+@router.post("/fts/create", tags=["Database/FTS"])
 def create_fts_index(
     request: CreateFTSIndexRequest, db_manager: SQLiteManager = Depends(get_db_manager)
 ) -> dict:
@@ -155,7 +156,7 @@ def create_fts_index(
 
 
 @tracer.start_as_current_span("post_fts_query")
-@router.post("/fts/query")
+@router.post("/fts/query", tags=["Database/FTS"])
 def query_fts_index(
     request: QueryFTSIndexRequest, db_manager: SQLiteManager = Depends(get_db_manager)
 ) -> dict:
@@ -185,7 +186,7 @@ def query_fts_index(
 
 
 @tracer.start_as_current_span("post_fts_update")
-@router.post("/fts/update")
+@router.post("/fts/update", tags=["Database/FTS"])
 def update_fts_index(
     table_name: str,
     fts_table_name: Optional[str] = None,
@@ -230,7 +231,7 @@ def update_fts_index(
 
 
 @tracer.start_as_current_span("post_fts_drop")
-@router.post("/fts/drop")
+@router.post("/fts/drop", tags=["Database/FTS"])
 def drop_fts_index(
     fts_table: str, db_manager: SQLiteManager = Depends(get_db_manager)
 ) -> dict:
@@ -254,6 +255,7 @@ def drop_fts_index(
 @tracer.start_as_current_span("get_fts_list")
 @router.get(
     "/fts/list",
+    tags=["Database/FTS"],
     summary="List FTS Indexes",
     description="List all available FTS indexes with their indexed fields.",
 )

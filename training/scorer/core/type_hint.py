@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional, Literal, get_args, get_origin, Union
+from typing import Any, Optional, Literal, get_args, get_origin, Union
 
 
 class TypeHintUtils:

@@ -5,7 +5,6 @@ import dspy
 
 
 class NewsAppSignature(dspy.Signature):
-
     # INPUT FIELD
     article_text: str = dspy.InputField(desc="Full article text for analysis.")
 

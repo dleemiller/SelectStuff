@@ -1,7 +1,5 @@
 import pytest
-from pathlib import Path
 import json
-import shutil
 from datetime import datetime
 from review.core.file_processor import FileProcessor
 from review.core.types import FileAction

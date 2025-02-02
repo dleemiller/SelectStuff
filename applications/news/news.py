@@ -8,9 +8,9 @@ from opentelemetry.trace.status import Status, StatusCode
 from sqlmodel import Field, Session
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from app.applications import ApplicationStuff, stuff
-from app.applications.sql_converter import SignatureToSQLModel
-from app.database import SQLiteManager
+from ..base import ApplicationStuff, stuff
+from databases.utils.sql_converter import SignatureToSQLModel
+from databases.database import SQLiteManager
 
 from .signature import NewsAppSignature
 
@@ -20,11 +20,11 @@ tracer = trace.get_tracer(__name__)
 # Load DSPy Program
 def load_program():
     program = dspy.ChainOfThought(NewsAppSignature)
-    program.load(Path(__file__).resolve().parent / "miprov2_llama32_3b.json")
+    program.load(Path(__file__).resolve().parent / "states" / "miprov2_llama32_3b.json")
     return program
 
 
-# @tracer.start_as_current_span("news")
+@tracer.start_as_current_span("news")
 @stuff("news")
 class NewsApp(ApplicationStuff):
     parser = load_program()
@@ -51,8 +51,6 @@ class NewsApp(ApplicationStuff):
         #    content_table="news",  # external content mode
         #    overwrite=True  # recreate if exists
         # )
-
-        # Initialize OpenTelemetry tracer
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def parser_with_retry(self, article_text: str):

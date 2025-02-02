@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock
 from app.main import app
 from app.database import SQLiteManager
 from app.routes.db_routes import get_db_manager

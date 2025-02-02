@@ -1,7 +1,6 @@
 import logging
 import numpy as np
 from typing import Any, get_args, get_origin, Union
-from datetime import date
 
 import dspy
 from wordllama import WordLlama

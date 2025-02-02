@@ -1,4 +1,4 @@
-from typing import List, Optional, Literal, Dict, Any, Union, TypeVar, Generic, Type
+from typing import List, Literal, Dict, Any, Union, TypeVar, Generic, Type
 from collections import Counter
 import itertools
 from pydantic import BaseModel, ValidationError
@@ -162,7 +162,10 @@ class LLMOutputAggregator(Generic[T]):
         aggregated_fields: Dict[str, Any] = {}
 
         for field_name, field_type in self.model_class.__annotations__.items():
-            field_values = [getattr(pred, field_name, None) or pred.get(field_name) for pred in predictions]
+            field_values = [
+                getattr(pred, field_name, None) or pred.get(field_name)
+                for pred in predictions
+            ]
 
             aggregated_fields[field_name] = self._aggregate_field(
                 field_name, field_type, field_values, threshold

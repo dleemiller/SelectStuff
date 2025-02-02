@@ -1,7 +1,6 @@
 import json
-from typing import get_origin, Optional
+from typing import Optional
 from sqlmodel import SQLModel, Session, create_engine, select
-from pydantic import BaseModel
 from app.applications.sql_converter import SignatureToSQLModel
 import dspy
 
