@@ -3499,6 +3499,33 @@ doc = ["reno", "sphinx"]
 test = ["pytest", "tornado (>=4.5)", "typeguard"]
 
 [[package]]
+name = "textdistance"
+version = "4.6.3"
+description = "Compute distance between the two texts."
+optional = false
+python-versions = ">=3.5"
+groups = ["train"]
+files = [
+    {file = "textdistance-4.6.3-py3-none-any.whl", hash = "sha256:0cb1b2cc8e3339ddc3e0f8c870e49fb49de6ecc42a718917308b3c971f34aa56"},
+    {file = "textdistance-4.6.3.tar.gz", hash = "sha256:d6dabc50b4ea832cdcf0e1e6021bd0c7fcd9ade155888d79bb6a3c31fce2dc6f"},
+]
+
+[package.extras]
+all = ["Levenshtein", "distance", "jellyfish", "numpy", "py-stringmatching", "pylev", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)", "tabulate"]
+benchmark = ["Levenshtein", "distance", "jellyfish", "numpy", "py-stringmatching", "pylev", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)", "tabulate"]
+benchmarks = ["Levenshtein", "distance", "jellyfish", "numpy", "py-stringmatching", "pylev", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)", "tabulate"]
+common = ["Levenshtein", "jellyfish", "numpy", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)"]
+dameraulevenshtein = ["jellyfish", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)"]
+extra = ["Levenshtein", "jellyfish", "numpy", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)"]
+extras = ["Levenshtein", "jellyfish", "numpy", "pyxDamerauLevenshtein", "rapidfuzz (>=2.6.0)"]
+hamming = ["Levenshtein", "distance", "jellyfish", "rapidfuzz (>=2.6.0)"]
+jaro = ["Levenshtein", "rapidfuzz (>=2.6.0)"]
+jarowinkler = ["jellyfish", "rapidfuzz (>=2.6.0)"]
+levenshtein = ["Levenshtein", "rapidfuzz (>=2.6.0)"]
+lint = ["flake8", "flake8-blind-except", "flake8-bugbear", "flake8-commas", "flake8-logging-format", "flake8-mutable", "flake8-pep3101", "flake8-quotes", "flake8-string-format", "flake8-tidy-imports", "isort", "mypy", "pep8-naming", "twine", "types-tabulate"]
+test = ["hypothesis", "isort", "numpy", "pytest"]
+
+[[package]]
 name = "tiktoken"
 version = "0.8.0"
 description = "tiktoken is a fast BPE tokeniser for use with OpenAI's models"
@@ -4257,4 +4284,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "60c32910b92f49f1189e4c0ecba78d022b5ae7bea1063f8ef6cb8a277128be66"
+content-hash = "75b6355beb339c421eccc8b6cf03d8bf0cc5b934dc0e364a43d77acd3bfb7c21"

@@ -116,8 +116,15 @@ class WordLlamaScorer:
                 # Use WordLlama instance with singledispatch for field comparison
                 field_score = compare_value(ref_val, pred_val, self.wl)
 
+            # Check for NaN values
+            if np.isnan(field_score):
+                logger.warning(
+                    f"NaN detected in scoring: ref_val={ref_val}, pred_val={pred_val}, field_name={field_name}"
+                )
+                field_score = 0.0  # Convert NaN to 0
+
             # logger.info(f"{ref_val}, {pred_val}, {field_score}")
-            scores.append(field_score)
+            scores.append(field_score or 0.0)
 
         # Return the average score across all fields
         return float(np.mean(scores)) if scores else 0.0

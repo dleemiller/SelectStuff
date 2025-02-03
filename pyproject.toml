@@ -54,6 +54,10 @@ coverage = ">=7.3.2,<8.0.0"
 mypy = ">=1.6.0,<2.0.0"
 flake8 = ">=6.1.0,<7.0.0"
 
+
+[tool.poetry.group.train.dependencies]
+textdistance = "^4.6.3"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
