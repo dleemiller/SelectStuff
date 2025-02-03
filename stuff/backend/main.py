@@ -41,6 +41,7 @@ else:
 
 tracer = trace.get_tracer(__name__)
 
+
 # ------------------------------
 # Application Setup
 # ------------------------------
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
 # Entry Point
 # ------------------------------
 application = create_app()
+
 
 @application.get("/health", include_in_schema=False)
 def health_check():

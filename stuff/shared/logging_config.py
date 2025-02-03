@@ -1,6 +1,4 @@
 # shared/logging_config.py
-import logging
-import uuid
 from contextvars import ContextVar
 from typing import Optional
 from opentelemetry import trace
@@ -9,6 +7,7 @@ import structlog
 # Context variables for request tracking
 request_id: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 user_id: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
+
 
 def get_trace_context() -> dict:
     """Get current trace context if available"""
@@ -19,11 +18,13 @@ def get_trace_context() -> dict:
             "span_id": format(span_context.span_id, "016x"),
         }
     return {}
-  
+
+
 def configure_logging(service_name: str):
     """
     Configure structured logging for the application
     """
+
     def add_trace_context(logger, method_name, event_dict):
         """Add trace context to log events if available"""
         trace_context = get_trace_context()
@@ -39,7 +40,7 @@ def configure_logging(service_name: str):
             add_trace_context,  # Add trace context
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),

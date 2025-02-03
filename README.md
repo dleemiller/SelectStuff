@@ -22,6 +22,10 @@ Moving parts:
 
 Install the dependencies in `pyproject.toml`.
 
+## Export the list of ENABLED_APPS
+```bash
+$ export ENABLED_APPS=news
+```
 
 ## FastAPI server
 

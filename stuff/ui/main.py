@@ -17,11 +17,11 @@ import html
 import streamlit as st
 
 # 1. Import the shared logger configuration
-from shared.logging_config import configure_logging, get_logger
+from stuff.shared.logging_config import configure_logging, get_logger
 
 # 2. Import utility functions for interacting with the FastAPI backend.
 #    These functions expect an "app" parameter to use namespaced endpoints.
-from fts_utils import (
+from stuff.ui.utils.fts_utils import (
     get_tables,
     get_table_schema,
     get_fts_indexes,
@@ -30,7 +30,7 @@ from fts_utils import (
     drop_index,
 )
 
-from trace_utils import ( TracingSession )
+from stuff.ui.utils.trace_utils import TracingSession
 
 session = TracingSession()
 # ---------------------------------------------------
@@ -141,7 +141,7 @@ def main():
     # ---------------------------------------------------
     enabled_apps_env = os.environ.get("ENABLED_APPS", "news")
     enabled_apps = [app.strip() for app in enabled_apps_env.split(",") if app.strip()]
-    
+
     st.sidebar.title("Application Selector")
     selected_app = st.sidebar.selectbox("Select Application", enabled_apps)
 
@@ -163,7 +163,9 @@ def main():
     else:
         selected_table = st.sidebar.selectbox("Indexed Table", indexed_tables)
 
-        schema = get_table_schema(selected_table, app=selected_app) if selected_table else []
+        schema = (
+            get_table_schema(selected_table, app=selected_app) if selected_table else []
+        )
         all_columns = [c["column_name"] for c in schema] if schema else []
         display_column = (
             st.sidebar.selectbox("Display Column (chat response)", all_columns)
@@ -198,11 +200,13 @@ def main():
             st.json(fts_indexes)
         else:
             st.write("No indexes found.")
-        
+
         st.write("---")
         st.write("**Create an Index**")
         all_db_tables = get_tables(app=selected_app)
-        create_table_sel = st.selectbox("Table to Index", all_db_tables, key="create_table_sel")
+        create_table_sel = st.selectbox(
+            "Table to Index", all_db_tables, key="create_table_sel"
+        )
         if create_table_sel:
             schema_create = get_table_schema(create_table_sel, app=selected_app)
             if schema_create:
@@ -215,17 +219,25 @@ def main():
 
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    stemmer = st.selectbox("Stemmer", ["porter", "english", "none"], index=0)
+                    stemmer = st.selectbox(
+                        "Stemmer", ["porter", "english", "none"], index=0
+                    )
                     lower = st.checkbox("Lowercase", value=True)
                 with col_b:
                     stopwords = st.text_input("Stopwords", placeholder="english")
                     strip_accents = st.checkbox("Strip Accents", value=True)
 
-                ignore_pattern = st.text_input("Ignore Regex (Optional)", r"(\.|[^a-z])+")
+                ignore_pattern = st.text_input(
+                    "Ignore Regex (Optional)", r"(\.|[^a-z])+"
+                )
                 overwrite = st.checkbox("Overwrite Existing Index", value=False)
 
                 if st.button("Create Index"):
-                    logger.info("admin.create_index.clicked", table=create_table_sel, columns=input_values_create)
+                    logger.info(
+                        "admin.create_index.clicked",
+                        table=create_table_sel,
+                        columns=input_values_create,
+                    )
                     resp = create_index(
                         fts_table=create_table_sel,
                         input_values=input_values_create,
@@ -239,7 +251,9 @@ def main():
                     )
                     if resp.status_code == 200:
                         st.success("Index created successfully!")
-                        logger.info("admin.create_index.success", table=create_table_sel)
+                        logger.info(
+                            "admin.create_index.success", table=create_table_sel
+                        )
                     else:
                         st.error(f"Error creating index: {resp.text}")
                         logger.error("admin.create_index.failed", error=resp.text)
@@ -249,7 +263,9 @@ def main():
         st.write("---")
         st.write("**Drop an Index**")
         if indexed_tables:
-            drop_sel = st.selectbox("Select Index to Drop", indexed_tables, key="drop_table_sel")
+            drop_sel = st.selectbox(
+                "Select Index to Drop", indexed_tables, key="drop_table_sel"
+            )
             if st.button("Drop Index"):
                 logger.info("admin.drop_index.clicked", table=drop_sel)
                 drop_resp = drop_index(drop_sel, app=selected_app)
@@ -276,7 +292,9 @@ def main():
         else:
             with st.chat_message("assistant"):
                 query_text = st.session_state.get("query_text")
-                heading = f"Top result for: {query_text}" if query_text else "Top result:"
+                heading = (
+                    f"Top result for: {query_text}" if query_text else "Top result:"
+                )
                 display_assistant_panel(msg["content"], heading=heading)
 
     # Chat input
@@ -326,11 +344,13 @@ def main():
             logger.error(
                 "chat.query_index.failed",
                 query=user_query,
-                status=resp.status_code if resp else "No response"
+                status=resp.status_code if resp else "No response",
             )
 
         # Add assistant message
-        st.session_state["messages"].append({"role": "assistant", "content": assistant_text})
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": assistant_text}
+        )
         st.rerun()
 
     # Button to clear chat

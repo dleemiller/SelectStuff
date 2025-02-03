@@ -9,7 +9,7 @@ Additionally, aggregator functions are provided to fetch data for all enabled ap
 import requests
 import streamlit as st
 from typing import Optional
-from trace_utils import tracing_session
+from .trace_utils import tracing_session
 
 # Base URL for your FastAPI server.
 API_BASE_URL = "http://127.0.0.1:8000"
@@ -62,7 +62,9 @@ def get_table_schema(table_name: str, app: str) -> list[dict]:
         list[dict]: The schema of the table as a list of dictionaries.
     """
     try:
-        resp = tracing_session.get(f"{API_BASE_URL}/v1/{app}/db/tables/{table_name}/schema")
+        resp = tracing_session.get(
+            f"{API_BASE_URL}/v1/{app}/db/tables/{table_name}/schema"
+        )
         resp.raise_for_status()
     except requests.RequestException as e:
         st.error(f"Error fetching schema for table '{table_name}' in app '{app}': {e}")
@@ -126,7 +128,9 @@ def create_index(
     }
     payload.update(kwargs)
     try:
-        return tracing_session.post(f"{API_BASE_URL}/v1/{app}/db/fts/create", json=payload)
+        return tracing_session.post(
+            f"{API_BASE_URL}/v1/{app}/db/fts/create", json=payload
+        )
     except requests.RequestException as e:
         st.error(f"Error creating index for app '{app}': {e}")
         return requests.Response()
@@ -160,7 +164,9 @@ def query_index(
     if fields:
         payload["fields"] = fields
     try:
-        return tracing_session.post(f"{API_BASE_URL}/v1/{app}/db/fts/query", json=payload)
+        return tracing_session.post(
+            f"{API_BASE_URL}/v1/{app}/db/fts/query", json=payload
+        )
     except requests.RequestException as e:
         st.error(f"Error querying index for app '{app}': {e}")
         return requests.Response()
