@@ -16,8 +16,11 @@ import os
 import html
 import streamlit as st
 
-# Import utility functions for interacting with the FastAPI backend.
-# These functions expect an "app" parameter to use namespaced endpoints.
+# 1. Import the shared logger configuration
+from shared.logging_config import configure_logging, get_logger
+
+# 2. Import utility functions for interacting with the FastAPI backend.
+#    These functions expect an "app" parameter to use namespaced endpoints.
 from fts_utils import (
     get_tables,
     get_table_schema,
@@ -27,16 +30,22 @@ from fts_utils import (
     drop_index,
 )
 
+from trace_utils import ( TracingSession )
+
+session = TracingSession()
+# ---------------------------------------------------
+# Configure Structured Logging for Streamlit
+# ---------------------------------------------------
+configure_logging("streamlit")
+logger = get_logger("streamlit")
+logger.info("streamlit_app started")
+
 
 def display_assistant_panel(body_text: str, heading: str = "Top Result:"):
     """
     Renders a panel with a bold heading and escaped body text.
 
     This panel is used to display the assistant's response.
-
-    Args:
-        body_text (str): The text to display.
-        heading (str): The heading for the panel.
     """
     safe_body = html.escape(body_text)
     panel_html = f"""
@@ -67,9 +76,6 @@ def display_assistant_panel(body_text: str, heading: str = "Top Result:"):
 def display_response_as_panel(response_text: str):
     """
     Renders a panel to display user messages or responses.
-
-    Args:
-        response_text (str): The text to display in the panel.
     """
     safe_content = html.escape(response_text)
     panel_html = f"""
@@ -108,33 +114,19 @@ def main():
     an application and various operations (view tables, view schema, create/drop index,
     query search, etc.), and displays a chat-like conversation for full-text search.
     """
-    # Configure the page.
+    # ---------------------------------------------------
+    # 1. Page & Style Config
+    # ---------------------------------------------------
     st.set_page_config(
         page_title="Select Stuff Search",
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    # Hide Streamlit menu and footer.
-    # st.markdown("""
-    #     <style>
-    #     #MainMenu {visibility: hidden;}
-    #     footer {visibility: hidden;}
-    #     </style>
-    #     """, unsafe_allow_html=True)
     st.markdown(
         """
         <style>
         div[data-testid="stStatusWidget"] {visibility: hidden;}
         footer {visibility: hidden;}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Optionally reduce the size of chat icons.
-    st.markdown(
-        """
-        <style>
         [data-testid="stMessageAvatar"] svg {
             width: 24px !important;
             height: 24px !important;
@@ -144,20 +136,23 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Load enabled apps from environment variable; default to "news" if not set.
+    # ---------------------------------------------------
+    # 2. Enabled Apps & Sidebar Configuration
+    # ---------------------------------------------------
     enabled_apps_env = os.environ.get("ENABLED_APPS", "news")
     enabled_apps = [app.strip() for app in enabled_apps_env.split(",") if app.strip()]
-
-    # Sidebar: Application selection.
+    
     st.sidebar.title("Application Selector")
     selected_app = st.sidebar.selectbox("Select Application", enabled_apps)
 
-    # Sidebar: Search Controls.
     st.sidebar.title("Search Controls")
-    # Get the FTS indexes for the selected app.
+    # Fetch FTS indexes for the selected app
     fts_indexes = get_fts_indexes(app=selected_app)
     indexed_tables = list(fts_indexes.keys()) if fts_indexes else []
 
+    # ---------------------------------------------------
+    # 3. Handle Indexed Tables & Field Selection
+    # ---------------------------------------------------
     if not indexed_tables:
         st.sidebar.warning("No indexed tables found. Please create one in Admin Tools.")
         selected_table = None
@@ -166,36 +161,9 @@ def main():
         display_column = None
         limit_val = 1
     else:
-        # Allow the user to select an indexed table.
         selected_table = st.sidebar.selectbox("Indexed Table", indexed_tables)
-        # Fetch the table schema.
-        schema = (
-            get_table_schema(selected_table, app=selected_app) if selected_table else []
-        )
-        # Try to infer a likely identifier column.
-        if schema:
-            inferred_id = next(
-                (
-                    col["column_name"]
-                    for col in schema
-                    if col["column_name"].lower() in ["id", "doc_id", "article_id"]
-                ),
-                schema[0]["column_name"],
-            )
-        else:
-            inferred_id = None
 
-        # Let the user select which fields to search.
-        st.sidebar.write("**Fields to Search**")
-        fields = []
-        if selected_table:
-            possible_fields = fts_indexes.get(selected_table, [])
-            for field in possible_fields:
-                toggled = st.sidebar.checkbox(field, value=True, key=f"toggle_{field}")
-                if toggled:
-                    fields.append(field)
-
-        # Allow the user to select the display column (for chat responses).
+        schema = get_table_schema(selected_table, app=selected_app) if selected_table else []
         all_columns = [c["column_name"] for c in schema] if schema else []
         display_column = (
             st.sidebar.selectbox("Display Column (chat response)", all_columns)
@@ -203,46 +171,61 @@ def main():
             else None
         )
 
-        # Number of rows to retrieve.
+        # Number of rows to retrieve from FTS query
         limit_val = st.sidebar.number_input("Number of Rows to Retrieve", 1, 50, 1)
 
-    # Sidebar: Admin Tools.
+        # Let the user select which fields to search (restoring the toggles).
+        st.sidebar.write("**Fields to Search**")
+        fields = []
+        # If the user wants to toggle fields for a given indexed table:
+        if selected_table in fts_indexes:
+            possible_fields = fts_indexes[selected_table]
+            for field in possible_fields:
+                toggled = st.sidebar.checkbox(field, value=True, key=f"toggle_{field}")
+                if toggled:
+                    fields.append(field)
+        else:
+            # If there's an edge case where the table isn't in the dict,
+            # 'possible_fields' won't exist, so we skip
+            pass
+
+    # ---------------------------------------------------
+    # 4. Admin Tools (Index Creation, Dropping)
+    # ---------------------------------------------------
     with st.sidebar.expander("Admin Tools"):
         st.write("**Existing FTS Indexes**")
         if fts_indexes:
             st.json(fts_indexes)
         else:
             st.write("No indexes found.")
+        
         st.write("---")
         st.write("**Create an Index**")
-        # Fetch all tables for the selected app.
         all_db_tables = get_tables(app=selected_app)
-        create_table_sel = st.selectbox(
-            "Table to Index", all_db_tables, key="create_table_sel"
-        )
+        create_table_sel = st.selectbox("Table to Index", all_db_tables, key="create_table_sel")
         if create_table_sel:
             schema_create = get_table_schema(create_table_sel, app=selected_app)
             if schema_create:
                 if st.checkbox("Show table schema?", key="chk_show_schema"):
                     st.json(schema_create)
-                # Let the user select columns to index.
+
                 input_values_create = st.multiselect(
                     "Columns to Index", [x["column_name"] for x in schema_create]
                 )
+
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    stemmer = st.selectbox(
-                        "Stemmer", ["porter", "english", "none"], index=0
-                    )
+                    stemmer = st.selectbox("Stemmer", ["porter", "english", "none"], index=0)
                     lower = st.checkbox("Lowercase", value=True)
                 with col_b:
                     stopwords = st.text_input("Stopwords", placeholder="english")
                     strip_accents = st.checkbox("Strip Accents", value=True)
-                ignore_pattern = st.text_input(
-                    "Ignore Regex (Optional)", r"(\.|[^a-z])+"
-                )
+
+                ignore_pattern = st.text_input("Ignore Regex (Optional)", r"(\.|[^a-z])+")
                 overwrite = st.checkbox("Overwrite Existing Index", value=False)
+
                 if st.button("Create Index"):
+                    logger.info("admin.create_index.clicked", table=create_table_sel, columns=input_values_create)
                     resp = create_index(
                         fts_table=create_table_sel,
                         input_values=input_values_create,
@@ -256,31 +239,36 @@ def main():
                     )
                     if resp.status_code == 200:
                         st.success("Index created successfully!")
+                        logger.info("admin.create_index.success", table=create_table_sel)
                     else:
                         st.error(f"Error creating index: {resp.text}")
+                        logger.error("admin.create_index.failed", error=resp.text)
             else:
                 st.info("No schema available for the selected table.")
+
         st.write("---")
         st.write("**Drop an Index**")
         if indexed_tables:
-            drop_sel = st.selectbox(
-                "Select Index to Drop", indexed_tables, key="drop_table_sel"
-            )
+            drop_sel = st.selectbox("Select Index to Drop", indexed_tables, key="drop_table_sel")
             if st.button("Drop Index"):
+                logger.info("admin.drop_index.clicked", table=drop_sel)
                 drop_resp = drop_index(drop_sel, app=selected_app)
                 if drop_resp.status_code == 200:
                     st.success(f"Index on '{drop_sel}' dropped successfully!")
+                    logger.info("admin.drop_index.success", table=drop_sel)
                 else:
                     st.error(f"Failed to drop index: {drop_resp.text}")
+                    logger.error("admin.drop_index.failed", error=drop_resp.text)
 
-    # Main: Chat-Style Search Experience.
+    # ---------------------------------------------------
+    # 5. Chat-Style Search Experience
+    # ---------------------------------------------------
     st.title("Select Stuff Search")
 
-    # Initialize conversation history in session state.
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
 
-    # Display previous messages.
+    # Display past messages
     for msg in st.session_state["messages"]:
         if msg["role"] == "user":
             with st.chat_message("user"):
@@ -288,36 +276,39 @@ def main():
         else:
             with st.chat_message("assistant"):
                 query_text = st.session_state.get("query_text")
-                heading = (
-                    f"Top result for: {query_text}" if query_text else "Top result:"
-                )
+                heading = f"Top result for: {query_text}" if query_text else "Top result:"
                 display_assistant_panel(msg["content"], heading=heading)
 
-    # Chat input for new query.
+    # Chat input
     user_query = st.chat_input("Type your search here...")
     st.session_state["query_text"] = user_query
 
+    # Process new user query
     if user_query and selected_table and display_column:
-        # Append user's message.
+        logger.info("chat.user_query_submitted", query=user_query, table=selected_table)
+
+        # Add user message
         st.session_state["messages"].append({"role": "user", "content": user_query})
 
-        # Prepare parameters for the FTS query.
+        # Prepare FTS query
         query_params = {
             "fts_table": selected_table,
             "query_string": user_query,
             "limit": limit_val if limit_val else 1,
         }
+
+        # If the user toggled specific fields to search, include them
         if fields:
             query_params["fields"] = fields
 
-        # Execute the query for the selected application.
+        # Execute the query
         resp = query_index(app=selected_app, **query_params)
         if resp and resp.status_code == 200:
+            logger.info("chat.query_index.success", query=user_query)
             results = resp.json().get("results", [])
             if results:
-                # Assume the first row is the top result.
+                # Take the first row as top result
                 top_row = results[0]
-                # If schema is available, construct a dictionary mapping.
                 if schema:
                     col_names = ["rowid"] + [c["column_name"] for c in schema]
                     if "score" not in col_names:
@@ -332,13 +323,17 @@ def main():
                 assistant_text = f"No results found for '{user_query}'."
         else:
             assistant_text = "Search failed or server error."
+            logger.error(
+                "chat.query_index.failed",
+                query=user_query,
+                status=resp.status_code if resp else "No response"
+            )
 
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": assistant_text}
-        )
+        # Add assistant message
+        st.session_state["messages"].append({"role": "assistant", "content": assistant_text})
         st.rerun()
 
-    # Option to clear the chat.
+    # Button to clear chat
     st.button("Clear Chat", on_click=clear_chat, key="clear_chat_btn")
 
 

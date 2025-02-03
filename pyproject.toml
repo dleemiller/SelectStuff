@@ -25,7 +25,8 @@ dependencies = [
     "opentelemetry-instrumentation-requests (>=0.50b0,<0.51)",
     "opentelemetry-exporter-otlp-proto-grpc (>=1.29.0,<2.0.0)",
     "opentelemetry-instrumentation-fastapi (>=0.50b0,<0.51)",
-    "opentelemetry-instrumentation-sqlalchemy (>=0.50b0,<0.51)"
+    "opentelemetry-instrumentation-sqlalchemy (>=0.50b0,<0.51)",
+    "structlog (>=25.1.0,<26.0.0)"
 ]
 
 [tool.poetry]
