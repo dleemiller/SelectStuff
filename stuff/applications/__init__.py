@@ -1,5 +1,6 @@
 # applications/__init__.py
 import importlib
+from pathlib import Path
 import os
 from fastapi import APIRouter
 import logging
@@ -46,6 +47,8 @@ def register_all_subrouters():
         enabled_apps = [app.strip() for app in enabled_apps.split(",")]
     print(f"Setting up enabled apps: {enabled_apps}")
 
+    BASE_DIR = Path(__file__).resolve().parent
+
     for app in enabled_apps or []:
         # Skip if the app is not enabled (this check is redundant here but left for clarity)
         if enabled_apps and (app not in enabled_apps):
@@ -56,7 +59,8 @@ def register_all_subrouters():
         module = importlib.import_module(f"stuff.applications.{app}")
 
         print(f"Loading app config for {app}")
-        config = load_config(f"applications/{app}/config.yml")
+        config_path = BASE_DIR / app / "config.yml"
+        config = load_config(str(config_path))
 
         configure_llm(config, APIKEY, callbacks=[])
         print(f"Initializing database for {app}")
