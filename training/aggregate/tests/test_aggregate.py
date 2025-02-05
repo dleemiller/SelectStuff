@@ -3,7 +3,6 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel
 from unittest.mock import Mock, patch
 from aggregate.aggregate import LLMOutputAggregator
-from aggregate.cluster import ClusteringConfig
 
 
 # Test models

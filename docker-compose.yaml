@@ -1,26 +1,60 @@
-version: '3.8'
-
 services:
-  backend:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus scrape port
+    depends_on:
+      - jaeger
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/jaeger:2.2.0
+    container_name: jaeger
+    volumes:
+      - "./jaeger-ui.json:/etc/jaeger/jaeger-ui.json" # Do we need this for v2 ? Seems to be running without this.
+      - ./config-spm.yaml:/etc/jaeger/config.yaml
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "6831:6831/udp" # UDP port for Jaeger agent
+      - "14268:14268" # HTTP port for spans
+      # - "4317:4317"    # OTLP gRPC
+      # - "4318:4318"    # OTLP HTTP
+    depends_on:
+      - prometheus
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  fastapi-app:
     build: .
+    container_name: fastapi-app
+    environment:
+      # OTLP gRPC endpoint points to otel-collector
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: grpc
+
+      APIKEY: ${APIKEY}
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-    environment:
-      - DATABASE_URL=sqlite:///./database.db
     depends_on:
-      - db
+      - jaeger
 
-  db:
-    image: postgres:15
-    restart: always
-    environment:
-      POSTGRES_USER: youruser
-      POSTGRES_PASSWORD: yourpassword
-      POSTGRES_DB: yourdb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-
-volumes:
-  postgres_data:
+  search_app:
+    build: ./search_app
+    container_name: search_app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi-app

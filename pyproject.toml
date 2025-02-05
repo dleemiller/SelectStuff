@@ -3,32 +3,47 @@ name = "selectstuff"
 version = "0.1.0"
 description = "Collect stuff from your browser"
 authors = [
-    {name = "Lee Miller",email = "dleemiller@protonmail.com"}
+    {name = "Lee Miller",email = "dleemiller@protonmail.com"},
+    {name =  "Bradley Smith",email = "bssmith925@gmail.com"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.12"
-package-mode = false
+package-mode = true
 dependencies = [
-    "streamlit (>=1.41.1,<2.0.0)",
     "requests (>=2.32.3,<3.0.0)",
     "sqlmodel (>=0.0.22,<0.0.23)",
     "python-dotenv (>=1.0.1,<2.0.0)",
     "dspy-ai (>=2.5.43,<3.0.0)",
     "pydantic (>=2.10.5,<3.0.0)",
-    "fastapi (>=0.115.6,<0.116.0)",
-    "uvicorn (>=0.34.0,<0.35.0)",
     "wordllama (>=0.3.8.post20,<0.4.0)",
     "pyyaml (>=6.0.2,<7.0.0)",
     "cloudpickle (>=3.1.1,<4.0.0)",
-    "watchdog (>=6.0.0,<7.0.0)"
+    "watchdog (>=6.0.0,<7.0.0)",
+    "opentelemetry-api (>=1.29.0,<2.0.0)",
+    "opentelemetry-sdk (>=1.29.0,<2.0.0)",
+    "opentelemetry-instrumentation-requests (>=0.50b0,<0.51)",
+    "opentelemetry-exporter-otlp-proto-grpc (>=1.29.0,<2.0.0)",
+    "opentelemetry-instrumentation-fastapi (>=0.50b0,<0.51)",
+    "opentelemetry-instrumentation-sqlalchemy (>=0.50b0,<0.51)",
+    "structlog (>=25.1.0,<26.0.0)"
 ]
 
 [tool.poetry]
 packages = [
-    {include = "app"},
-    {include = "search_app"},
+    # {include = "stuff"},
+    {include = "stuff/backend"},
+    {include = "stuff/applications"},
+    {include = "stuff/ui"},
+    {include = "stuff/shared"}  
 ]
+
+[tool.poetry.group.backend.dependencies]
+uvicorn = "^0.34.0"
+fastapi = "^0.115.8"
+
+[tool.poetry.group.ui.dependencies]
+streamlit = "^1.41.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0,<8.0.0"
@@ -49,11 +64,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.coverage.run]
 source = [
-    "app",
-    "search",
+    "backend",
+    "applications",
     "review",
-    "database",
-    "main",
+    "databases",
 ]
 branch = true
 

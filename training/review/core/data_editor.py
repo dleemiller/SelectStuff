@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 import streamlit as st
 import json
 from datetime import datetime

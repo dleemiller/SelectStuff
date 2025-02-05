@@ -1,11 +1,9 @@
 import pytest
 import numpy as np
-from typing import List
 from unittest.mock import Mock, patch
 
 from aggregate.cluster import (
     ClusteringConfig,
-    ClusteringStrategy,
     JaccardClustering,
     SemanticClustering,
     get_clustering_strategy,

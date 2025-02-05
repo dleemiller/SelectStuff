@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from review.config import AppConfig
 
 

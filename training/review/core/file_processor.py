@@ -1,7 +1,7 @@
 # core/file_processor.py
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Generator
+from typing import Dict, List, Any, Optional
 import json
 import shutil
 import logging
@@ -9,8 +9,6 @@ import hashlib
 from datetime import datetime
 import os
 from threading import Lock
-import tempfile
-from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 

@@ -1,6 +1,5 @@
-import logging
 from functools import singledispatch
-from typing import Any, List
+from typing import Any
 import numpy as np
 from datetime import date
 import textdistance
