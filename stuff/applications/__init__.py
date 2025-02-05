@@ -1,16 +1,15 @@
 # applications/__init__.py
-
 import importlib
-from .helpers.appconfig import AppConfig, load_config
-from .helpers.database import initialize_database
-from .helpers.llm import configure_llm
 import os
 from fastapi import APIRouter
 import logging
 from opentelemetry import trace
-from .models import inputs
 
-from databases.db_routes import create_db_router
+from stuff.applications.helpers.appconfig import AppConfig, load_config
+from stuff.applications.helpers.database import initialize_database
+from stuff.applications.helpers.llm import configure_llm
+from stuff.applications.models import inputs
+from stuff.databases.db_routes import create_db_router
 
 tracer = trace.get_tracer(__name__)
 router = APIRouter(prefix="/v1")
@@ -47,7 +46,7 @@ def register_all_subrouters():
         enabled_apps = [app.strip() for app in enabled_apps.split(",")]
     print(f"Setting up enabled apps: {enabled_apps}")
 
-    for app in enabled_apps:
+    for app in enabled_apps or []:
         # Skip if the app is not enabled (this check is redundant here but left for clarity)
         if enabled_apps and (app not in enabled_apps):
             continue
