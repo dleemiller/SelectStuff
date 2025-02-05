@@ -2,9 +2,9 @@ from typing import Callable, Optional, Type
 from opentelemetry import trace
 import yaml
 from pydantic import BaseModel, field_validator
-from ..base import get_stuff
-from ..helpers.models import get_request_model
-from databases.database import SQLiteManager
+from stuff.applications.base import get_stuff
+from stuff.applications.helpers.models import get_request_model
+from stuff.databases.database import SQLiteManager
 
 tracer = trace.get_tracer(__name__)
 

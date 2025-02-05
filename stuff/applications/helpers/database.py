@@ -1,4 +1,4 @@
-from databases.database import SQLiteManager
+from stuff.databases.database import SQLiteManager
 
 
 def initialize_database(config) -> SQLiteManager:
