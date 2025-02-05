@@ -46,7 +46,7 @@ services:
       # OTLP gRPC endpoint points to otel-collector
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: grpc
-
+      ENABLED_APPS: news
       APIKEY: ${APIKEY}
     ports:
       - "8000:8000"
