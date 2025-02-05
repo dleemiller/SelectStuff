@@ -10,14 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
-WORKDIR /ui
+WORKDIR /app
 
 # Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy uilication code
-COPY . .
+# Copy only the stuff directory since that's where our code lives
+COPY ./stuff /app/stuff
 
 # Stage 2: Production
 FROM python:3.12-slim
@@ -31,19 +31,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
-WORKDIR /ui
+WORKDIR /app
 
 # Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-
-# **Copy the /usr/local/bin directory from builder to production**
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy uilication code from builder
-COPY --from=builder /ui /ui
+# Copy application code from builder
+COPY --from=builder /app /app
 
 # Expose the port Streamlit runs on
 EXPOSE 8501
 
-# Run the Streamlit ui
-CMD ["streamlit", "run", "main.py"]
+ENV PYTHONPATH=/app
+CMD ["streamlit", "run", "stuff/ui/main.py"]
+
