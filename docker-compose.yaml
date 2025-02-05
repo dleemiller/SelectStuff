@@ -2,7 +2,7 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ./cmd/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
       - "4317:4317"   # OTLP gRPC
@@ -16,8 +16,8 @@ services:
     image: jaegertracing/jaeger:2.2.0
     container_name: jaeger
     volumes:
-      - "./jaeger-ui.json:/etc/jaeger/jaeger-ui.json" # Do we need this for v2 ? Seems to be running without this.
-      - ./config-spm.yaml:/etc/jaeger/config.yaml
+      - "./jaeger/jaeger-ui.json:/etc/jaeger/jaeger-ui.json" # Do we need this for v2 ? Seems to be running without this.
+      - ./jaeger/config-spm.yaml:/etc/jaeger/config.yaml
     command: ["--config", "/etc/jaeger/config.yaml"]
     ports:
       - "16686:16686"  # Jaeger UI
@@ -35,16 +35,18 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
 
   fastapi-app:
-    build: .
+    build:
+      context: .
+      dockerfile: Containerfile
     container_name: fastapi-app
     environment:
       # OTLP gRPC endpoint points to otel-collector
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4317
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: grpc
-
+      ENABLED_APPS: news
       APIKEY: ${APIKEY}
     ports:
       - "8000:8000"
@@ -52,7 +54,9 @@ services:
       - jaeger
 
   search_app:
-    build: ./search_app
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
     container_name: search_app
     ports:
       - "8501:8501"

@@ -16,8 +16,8 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from databases.database import SQLiteManager
-from databases.models import (
+from stuff.databases.database import SQLiteManager
+from stuff.databases.models import (
     ExecuteQueryRequest,
     CreateFTSIndexRequest,
     QueryFTSIndexRequest,

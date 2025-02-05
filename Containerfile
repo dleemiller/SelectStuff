@@ -16,8 +16,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code - now copying the entire stuff directory
+COPY ./stuff /app/stuff
 
 # Stage 2: Production
 FROM python:3.12-slim
@@ -35,8 +35,6 @@ WORKDIR /app
 
 # Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-
-# **Copy the /usr/local/bin directory from builder to production**
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code from builder
@@ -45,5 +43,5 @@ COPY --from=builder /app /app
 # Expose port
 EXPOSE 8000
 
-# Define the default command
-CMD ["uvicorn", "app.main:application", "--host", "0.0.0.0", "--port", "8000"]
+ENV PYTHONPATH=/app
+CMD ["uvicorn", "stuff.backend.main:application", "--host", "0.0.0.0", "--port", "8000"]

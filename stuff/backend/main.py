@@ -11,8 +11,8 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from applications import router as apps_router
-from shared.logging_config import configure_logging, get_logger, request_id
+from stuff.applications import router as apps_router
+from stuff.shared.logging_config import configure_logging, get_logger, request_id
 
 # ------------------------------
 # Load Environment Variables

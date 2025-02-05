@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from ..helpers.models import request_model
+from stuff.applications.helpers.models import request_model
 
 
 @request_model("TextInput")

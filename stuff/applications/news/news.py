@@ -8,9 +8,9 @@ from opentelemetry.trace.status import Status, StatusCode
 from sqlmodel import Field, Session
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from ..base import ApplicationStuff, stuff
-from databases.utils.sql_converter import SignatureToSQLModel
-from databases.database import SQLiteManager
+from stuff.applications.base import ApplicationStuff, stuff
+from stuff.databases.utils.sql_converter import SignatureToSQLModel
+from stuff.databases.database import SQLiteManager
 
 from .signature import NewsAppSignature
 

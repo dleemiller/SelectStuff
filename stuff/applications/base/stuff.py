@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Callable
 
-from databases.database import SQLiteManager
+from stuff.databases.database import SQLiteManager
 
 _application_stuff: Dict[str, Callable] = {}
 
