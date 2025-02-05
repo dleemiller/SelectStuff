@@ -5,8 +5,9 @@ from pydantic import BaseModel, field_validator
 from stuff.applications.base import get_stuff
 from stuff.applications.helpers.models import get_request_model
 from stuff.databases.database import SQLiteManager
-
+from pathlib import Path
 tracer = trace.get_tracer(__name__)
+base_dir = Path(__file__).resolve().parent
 
 
 class RouteConfig(BaseModel):
@@ -64,7 +65,9 @@ class AppConfig(BaseModel):
 
 
 def load_config(yaml_file: str) -> AppConfig:
-    with open(yaml_file, "r") as file:
+    base_dir = Path(__file__).resolve().parent
+    config_path = base_dir.parent / yaml_file
+    with open(config_path, "r") as file:
         data = yaml.safe_load(file)
     return AppConfig(**data)
 

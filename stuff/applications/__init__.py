@@ -56,7 +56,7 @@ def register_all_subrouters():
         module = importlib.import_module(f"stuff.applications.{app}")
 
         print(f"Loading app config for {app}")
-        config = load_config(f"applications/{app}/config.yml")
+        config = load_config(f"{app}/config.yml")
 
         configure_llm(config, APIKEY, callbacks=[])
         print(f"Initializing database for {app}")
