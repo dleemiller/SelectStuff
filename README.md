@@ -57,5 +57,5 @@ Open chromium, click on the "puzzle piece" extension button:
 ## To generate requirements.txt
 ```bash
 $ poetry self add poetry-plugin-export
-$ poetry export -f requirements.txt --output requirements.txt --without-hashes
+$ poetry export -f requirements.txt --output requirements.txt --without-hashes --all-groups
 ```
