@@ -50,6 +50,8 @@ services:
       APIKEY: ${APIKEY}
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data
     depends_on:
       - jaeger
 
