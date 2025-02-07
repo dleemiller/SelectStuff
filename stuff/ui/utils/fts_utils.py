@@ -10,9 +10,9 @@ import requests
 import streamlit as st
 from typing import Optional
 from .trace_utils import tracing_session
-
+import os
 # Base URL for your FastAPI server.
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://fastapi-app:8000")
 
 
 def get_tables(app: str) -> list[str]:
