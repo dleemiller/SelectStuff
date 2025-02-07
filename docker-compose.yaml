@@ -5,9 +5,9 @@ services:
       - ./cmd/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8889:8889"   # Prometheus scrape port
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8889:8889" # Prometheus scrape port
     depends_on:
       - jaeger
       - prometheus
@@ -20,14 +20,13 @@ services:
       - ./jaeger/config-spm.yaml:/etc/jaeger/config.yaml
     command: ["--config", "/etc/jaeger/config.yaml"]
     ports:
-      - "16686:16686"  # Jaeger UI
+      - "16686:16686" # Jaeger UI
       - "6831:6831/udp" # UDP port for Jaeger agent
       - "14268:14268" # HTTP port for spans
       # - "4317:4317"    # OTLP gRPC
       # - "4318:4318"    # OTLP HTTP
     depends_on:
       - prometheus
-
 
   prometheus:
     image: prom/prometheus:latest
@@ -60,7 +59,13 @@ services:
       context: .
       dockerfile: Dockerfile.ui
     container_name: search_app
+    environment:
+      - API_BASE_URL=http://fastapi-app:8000
     ports:
       - "8501:8501"
     depends_on:
       - fastapi-app
+      
+networks:
+  app-network:
+    driver: bridge
