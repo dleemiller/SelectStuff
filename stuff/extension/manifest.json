@@ -10,11 +10,11 @@
     "notifications"
   ],
   "host_permissions": [
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*"
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background.js",
+    "type": "module"
   },
   "options_page": "options.html",
   "action": {
@@ -49,3 +49,4 @@
     }
   }
 }
+
