@@ -92,15 +92,13 @@ def create_app() -> FastAPI:
             )
             raise
 
-    # CORS settings
-    origins = [
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "chrome-extension://*",
-    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=[
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ],
+        allow_origin_regex=r"^chrome-extension://.*$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
