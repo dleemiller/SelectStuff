@@ -1,4 +1,9 @@
-from __future__ import annotations
+"""Module duck_search.duck_search
+
+This module provides the DuckSearch class for querying DuckDuckGo search results
+using different backends. It implements adaptive rate limiting via a token bucket
+and retries with exponential backoff with jitter.
+"""
 
 import logging
 import os
@@ -7,25 +12,28 @@ import warnings
 from functools import cached_property
 from time import sleep, time
 from types import TracebackType
-from typing import Literal, cast
+from typing import Literal, Optional, cast
 
 import primp
 from lxml.html import HTMLParser as LHTMLParser
 
-from .exceptions import (
-    ConversationLimitException,
-    DuckDuckGoSearchException,
-    RatelimitException,
-    TimeoutException,
-)
-from .utils import _expand_proxy_tb_alias, _normalize, _normalize_url
+from .exceptions import DuckDuckGoSearchException, RatelimitException, TimeoutException
+from .utils import _expand_proxy_tb_alias
+
 from .parsers import HtmlParser, LiteParser
 
-logger = logging.getLogger("duckduckgo_search.DDGS")
+logger = logging.getLogger("duck_search.DuckSearch")
 
 
-class DDGS:
-    """DuckDuckgo_search class to retrieve search results from duckduckgo.com."""
+class DuckSearch:
+    """DuckDuckGo Search client.
+
+    This class handles sending search queries to DuckDuckGo using either the HTML or Lite
+    backend, managing rate limits via a token bucket and retrying on transient errors.
+
+    Attributes:
+        client: The underlying HTTP client.
+    """
 
     _impersonates = (
         "chrome_100",
@@ -79,23 +87,21 @@ class DDGS:
 
     def __init__(
         self,
-        headers: dict[str, str] | None = None,
-        proxy: str | None = None,
-        proxies: dict[str, str] | str | None = None,  # deprecated
-        timeout: int | None = 10,
+        headers: Optional[dict[str, str]] = None,
+        proxy: Optional[str] = None,
+        timeout: Optional[int] = 10,
         verify: bool = True,
     ) -> None:
-        ddgs_proxy: str | None = os.environ.get("DDGS_PROXY")
-        self.proxy: str | None = (
-            ddgs_proxy if ddgs_proxy else _expand_proxy_tb_alias(proxy)
-        )
-        if not proxy and proxies:
-            warnings.warn("'proxies' is deprecated, use 'proxy' instead.", stacklevel=1)
-            self.proxy = (
-                proxies.get("http") or proxies.get("https")
-                if isinstance(proxies, dict)
-                else proxies
-            )
+        """Initialize a new DuckSearch instance.
+
+        Args:
+            headers: Optional HTTP headers.
+            proxy: Optional proxy string.
+            timeout: Timeout in seconds for HTTP requests.
+            verify: Whether to verify SSL certificates.
+        """
+        ddgs_proxy = os.environ.get("DuckSearch_PROXY")
+        self.proxy = ddgs_proxy if ddgs_proxy else _expand_proxy_tb_alias(proxy)
         self.headers = headers or {}
         self.headers["Referer"] = "https://duckduckgo.com/"
         self.client = primp.Client(
@@ -109,24 +115,20 @@ class DDGS:
             follow_redirects=False,
             verify=verify,
         )
-        self._chat_messages: list[dict[str, str]] = []
-        self._chat_tokens_count = 0
-        self._chat_vqd: str = ""
-
-        # Token Bucket settings: enforce roughly 1 request every 6 seconds (~10 req/min)
+        # Token bucket settings: enforce roughly 1 request every 6 seconds (~10 req/min).
         self.bucket_capacity: float = 1.0
         self.refill_rate: float = 1.0 / 6.0
         self.tokens: float = self.bucket_capacity
         self.token_last_refill: float = time()
 
-    def __enter__(self) -> DDGS:
+    def __enter__(self) -> "DuckSearch":
         return self
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None = None,
-        exc_val: BaseException | None = None,
-        exc_tb: TracebackType | None = None,
+        exc_type: Optional[type[BaseException]] = None,
+        exc_val: Optional[BaseException] = None,
+        exc_tb: Optional[TracebackType] = None,
     ) -> None:
         pass
 
@@ -140,7 +142,7 @@ class DDGS:
         )
 
     def _wait_for_token(self) -> None:
-        """Refill token bucket and wait until one token is available."""
+        """Wait until a token is available in the token bucket."""
         now = time()
         elapsed = now - self.token_last_refill
         self.tokens = min(
@@ -149,11 +151,19 @@ class DDGS:
         self.token_last_refill = now
         if self.tokens < 1:
             sleep((1 - self.tokens) / self.refill_rate)
-            self._wait_for_token()
+            self._wait_for_token()  # recursive call after sleep
         else:
             self.tokens -= 1
 
     def _calculate_backoff(self, attempt: int) -> float:
+        """Calculate exponential backoff delay with jitter for a given attempt.
+
+        Args:
+            attempt: The current retry attempt (starting at 1).
+
+        Returns:
+            A delay in seconds.
+        """
         base_delay = 1.0
         delay = base_delay * (2 ** (attempt - 1))
         return delay * random.uniform(0.8, 1.2)
@@ -164,6 +174,19 @@ class DDGS:
         url: str,
         **kwargs,
     ) -> bytes:
+        """Make an HTTP request with rate limiting and retry logic.
+
+        Args:
+            method: HTTP method.
+            url: Request URL.
+            **kwargs: Additional keyword arguments for the request.
+
+        Returns:
+            The response content as bytes.
+
+        Raises:
+            TimeoutException, DuckDuckGoSearchException, RatelimitException.
+        """
         max_attempts = 5
         for attempt in range(1, max_attempts + 1):
             self._wait_for_token()
@@ -171,38 +194,53 @@ class DDGS:
                 resp = self.client.request(method, url, **kwargs)
             except Exception as ex:
                 if "time" in str(ex).lower():
-                    raise TimeoutException(f"{url} {type(ex).__name__}: {ex}") from ex
+                    raise TimeoutException(
+                        "%s %s: %s", url, type(ex).__name__, ex
+                    ) from ex
                 raise DuckDuckGoSearchException(
-                    f"{url} {type(ex).__name__}: {ex}"
+                    "%s %s: %s", url, type(ex).__name__, ex
                 ) from ex
             logger.debug(
-                f"_make_request() {resp.url} {resp.status_code} {len(resp.content)}"
+                "_make_request() %s %d %d",
+                resp.url,
+                resp.status_code,
+                len(resp.content),
             )
             if resp.status_code == 200:
                 return cast(bytes, resp.content)
-            elif resp.status_code in (202, 301, 403):
+            if resp.status_code in (202, 301, 403):
                 if attempt < max_attempts:
                     delay = self._calculate_backoff(attempt)
                     logger.info(
-                        f"Rate limit hit ({resp.status_code}) on {resp.url}. Retrying in {delay:.2f}s (attempt {attempt}/{max_attempts})."
+                        "Rate limit hit (%s) on %s. Retrying in %.2fs (attempt %d/%d).",
+                        resp.status_code,
+                        resp.url,
+                        delay,
+                        attempt,
+                        max_attempts,
                     )
                     sleep(delay)
                     continue
             raise DuckDuckGoSearchException(
-                f"{resp.url} returned status {resp.status_code}."
+                "%s returned status %s.", resp.url, resp.status_code
             )
         raise RatelimitException(
-            f"{url} exceeded rate limit after {max_attempts} attempts."
+            "%s exceeded rate limit after %d attempts.", url, max_attempts
         )
 
-    def _search_paginated(
-        self,
-        parser_cls,
-        keywords: str,
-        region: str,
-        timelimit: str | None,
-        max_results: int | None,
-    ) -> list[dict[str, str]]:
+    def _build_payload(
+        self, keywords: str, region: str, timelimit: Optional[str] = None
+    ) -> dict[str, str]:
+        """Build the initial payload for a search query.
+
+        Args:
+            keywords: Search keywords.
+            region: Region code.
+            timelimit: Optional time limit filter.
+
+        Returns:
+            A dictionary of query parameters.
+        """
         payload = {
             "q": keywords,
             "s": "0",
@@ -214,7 +252,31 @@ class DDGS:
         }
         if timelimit:
             payload["df"] = timelimit
-        results, seen = [], set()
+        return payload
+
+    def _search_paginated(
+        self,
+        parser_cls,
+        keywords: str,
+        region: str,
+        timelimit: Optional[str],
+        max_results: Optional[int],
+    ) -> list[dict[str, str]]:
+        """Handle pagination of search results.
+
+        Args:
+            parser_cls: The parser class (e.g. HtmlParser or LiteParser).
+            keywords: Search keywords.
+            region: Region code.
+            timelimit: Optional time limit.
+            max_results: Maximum results to return.
+
+        Returns:
+            A list of search results.
+        """
+        payload = self._build_payload(keywords, region, timelimit)
+        results: list[dict[str, str]] = []
+        seen = set()
         while True:
             content = self._make_request("POST", parser_cls.endpoint, data=payload)
             if parser_cls.no_results(content):
@@ -233,14 +295,28 @@ class DDGS:
         self,
         keywords: str,
         region: str = "wt-wt",
-        safesearch: str = "moderate",
-        timelimit: str | None = None,
+        timelimit: Optional[str] = None,
         backend: str = "auto",
-        max_results: int | None = None,
+        max_results: Optional[int] = None,
     ) -> list[dict[str, str]]:
+        """Perform a DuckDuckGo text search.
+
+        Args:
+            keywords: Search keywords.
+            region: Region code (e.g. "wt-wt", "us-en").
+            timelimit: Optional time limit filter.
+            backend: Which backend to use ("html", "lite", or "auto").
+            max_results: Maximum number of results to return.
+
+        Returns:
+            A list of dictionaries containing search result data.
+
+        Raises:
+            DuckDuckGoSearchException if all backends fail.
+        """
         if backend in ("api", "ecosia"):
             warnings.warn(
-                f"{backend=} is deprecated, using backend='auto'", stacklevel=2
+                "backend=%s is deprecated, using backend='auto'" % backend, stacklevel=2
             )
             backend = "auto"
         backends = ["html", "lite"] if backend == "auto" else [backend]
@@ -257,6 +333,6 @@ class DDGS:
                         LiteParser, keywords, region, timelimit, max_results
                     )
             except Exception as ex:
-                logger.info(f"Error with backend '{b}': {ex}")
+                logger.info("Error with backend '%s': %s", b, ex)
                 last_err = ex
         raise DuckDuckGoSearchException(last_err)

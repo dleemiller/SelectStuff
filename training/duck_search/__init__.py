@@ -1,1 +1,1 @@
-from .duck_search import DDGS
+from .duck_search import DuckSearch
